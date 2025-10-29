@@ -143,8 +143,11 @@ const GradesWithDashboard = () => {
         grade_type: formData.grade_type,
         score: parseFloat(formData.score),
         max_score: parseFloat(formData.max_score),
-        comments: formData.comments
+        notes: formData.comments, // Changed from 'comments' to 'notes'
+        date_recorded: new Date().toISOString().split('T')[0] // Add current date in YYYY-MM-DD format
       };
+
+      console.log('Submitting grade data:', gradeData);
 
       if (editingGrade) {
         await updateGrade(accessToken, editingGrade.id, gradeData);
@@ -175,7 +178,7 @@ const GradesWithDashboard = () => {
       console.error('Failed to save grade:', error);
       toast({
         title: "Error",
-        description: "Failed to save grade",
+        description: error.message || "Failed to save grade",
         variant: "destructive",
       });
     } finally {
@@ -377,7 +380,7 @@ const GradesWithDashboard = () => {
                     <SelectItem value="all">All Subjects</SelectItem>
                     {subjects.map((subject: any) => (
                       <SelectItem key={subject.id} value={subject.id.toString()}>
-                        {subject.name}
+                        {subject.title}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -392,14 +395,14 @@ const GradesWithDashboard = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Types</SelectItem>
-                    <SelectItem value="Assignment">Assignment</SelectItem>
-                    <SelectItem value="Quiz">Quiz</SelectItem>
-                    <SelectItem value="Test">Test</SelectItem>
-                    <SelectItem value="Project">Project</SelectItem>
-                    <SelectItem value="Homework">Homework</SelectItem>
-                    <SelectItem value="Midterm">Midterm</SelectItem>
-                    <SelectItem value="Final">Final</SelectItem>
-                    <SelectItem value="Participation">Participation</SelectItem>
+                    <SelectItem value="assignment">Assignment</SelectItem>
+                    <SelectItem value="quiz">Quiz</SelectItem>
+                    <SelectItem value="test">Test</SelectItem>
+                    <SelectItem value="project">Project</SelectItem>
+                    <SelectItem value="homework">Homework</SelectItem>
+                    <SelectItem value="midterm">Midterm</SelectItem>
+                    <SelectItem value="final">Final</SelectItem>
+                    <SelectItem value="participation">Participation</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -576,14 +579,14 @@ const GradesWithDashboard = () => {
                     <SelectValue placeholder="Select grade type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Assignment">Assignment</SelectItem>
-                    <SelectItem value="Quiz">Quiz</SelectItem>
-                    <SelectItem value="Test">Test</SelectItem>
-                    <SelectItem value="Project">Project</SelectItem>
-                    <SelectItem value="Homework">Homework</SelectItem>
-                    <SelectItem value="Midterm">Midterm</SelectItem>
-                    <SelectItem value="Final">Final</SelectItem>
-                    <SelectItem value="Participation">Participation</SelectItem>
+                    <SelectItem value="assignment">Assignment</SelectItem>
+                    <SelectItem value="quiz">Quiz</SelectItem>
+                    <SelectItem value="test">Test</SelectItem>
+                    <SelectItem value="project">Project</SelectItem>
+                    <SelectItem value="homework">Homework</SelectItem>
+                    <SelectItem value="midterm">Midterm</SelectItem>
+                    <SelectItem value="final">Final</SelectItem>
+                    <SelectItem value="participation">Participation</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

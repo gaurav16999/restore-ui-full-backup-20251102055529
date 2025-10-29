@@ -371,8 +371,8 @@ const AdminGrades = () => {
                 <SelectContent>
                   <SelectItem value="all">All Subjects</SelectItem>
                   {subjects.map((subject) => (
-                    <SelectItem key={subject.id} value={subject.name}>
-                      {subject.name}
+                    <SelectItem key={subject.id} value={subject.title}>
+                      {subject.title}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -509,7 +509,7 @@ const AdminGrades = () => {
                     <SelectContent>
                       {subjects.map((subject) => (
                         <SelectItem key={subject.id} value={subject.id.toString()}>
-                          {subject.name}
+                          {subject.title}
                         </SelectItem>
                       ))}
                     </SelectContent>

@@ -5,6 +5,7 @@ from django.db.models import Avg, Count, Q, F
 from admin_api.models import Student, Grade, Class, Subject, Attendance
 from datetime import datetime, timedelta
 from django.utils import timezone
+from decimal import Decimal
 
 
 class ReportAnalyticsView(APIView):
@@ -68,7 +69,9 @@ class ReportAnalyticsView(APIView):
     def _calculate_analytics(self, students_query, grades_query):
         """Calculate overall analytics"""
         # Class average
-        avg_score = grades_query.aggregate(Avg('score'))['score__avg'] or 0
+        avg_score = grades_query.aggregate(Avg('score'))['score__avg']
+        if avg_score is None:
+            avg_score = Decimal('0')
         
         # Get unique students with grades
         students_with_grades = students_query.filter(
@@ -81,7 +84,10 @@ class ReportAnalyticsView(APIView):
         improving = 0
         
         for student in students_with_grades:
-            student_avg = grades_query.filter(student=student).aggregate(Avg('score'))['score__avg'] or 0
+            student_avg = grades_query.filter(student=student).aggregate(Avg('score'))['score__avg']
+            if student_avg is None:
+                student_avg = Decimal('0')
+            
             if student_avg >= 90:
                 top_performers += 1
             elif student_avg < 60:
@@ -92,20 +98,24 @@ class ReportAnalyticsView(APIView):
             older_grades = grades_query.filter(student=student).order_by('-created_at')[3:6]
             
             if recent_grades.exists() and older_grades.exists():
-                recent_avg = recent_grades.aggregate(Avg('score'))['score__avg'] or 0
-                older_avg = older_grades.aggregate(Avg('score'))['score__avg'] or 0
+                recent_avg = recent_grades.aggregate(Avg('score'))['score__avg'] or Decimal('0')
+                older_avg = older_grades.aggregate(Avg('score'))['score__avg'] or Decimal('0')
                 if recent_avg > older_avg:
                     improving += 1
         
         total_students = students_with_grades.count()
         improvement_rate = (improving / total_students * 100) if total_students > 0 else 0
         
+        # Convert Decimal to float for JSON serialization
+        avg_score_float = float(avg_score)
+        trend_value = (avg_score_float - 75) * 0.1
+        
         return {
-            'class_average': round(avg_score, 1),
+            'class_average': round(avg_score_float, 1),
             'top_performers': top_performers,
             'at_risk': at_risk,
             'improvement_rate': round(improvement_rate, 1),
-            'trend': round((avg_score - 75) * 0.1, 1),  # Mock trend calculation
+            'trend': round(trend_value, 1),
             'total_students': total_students,
             'total_grades': grades_query.count()
         }
@@ -121,7 +131,9 @@ class ReportAnalyticsView(APIView):
                 continue
             
             # Calculate averages
-            overall_avg = student_grades.aggregate(Avg('score'))['score__avg'] or 0
+            overall_avg = student_grades.aggregate(Avg('score'))['score__avg']
+            if overall_avg is None:
+                overall_avg = Decimal('0')
             
             # Get attendance
             attendance_records = Attendance.objects.filter(student=student)
@@ -130,7 +142,7 @@ class ReportAnalyticsView(APIView):
             attendance_rate = (present_count / total_attendance * 100) if total_attendance > 0 else 0
             
             # Determine grade letter
-            grade_letter = self._get_letter_grade(overall_avg)
+            grade_letter = self._get_letter_grade(float(overall_avg))
             
             # Calculate rank (simple version)
             rank = students_query.filter(
@@ -145,7 +157,7 @@ class ReportAnalyticsView(APIView):
                 'roll_no': student.roll_no,
                 'class': student.class_name,
                 'email': student.user.email if hasattr(student.user, 'email') else '',
-                'overall_average': round(overall_avg, 1),
+                'overall_average': round(float(overall_avg), 1),
                 'grade': grade_letter,
                 'rank': rank,
                 'attendance': round(attendance_rate, 1),
@@ -169,7 +181,10 @@ class ReportAnalyticsView(APIView):
             if not class_grades.exists():
                 continue
             
-            avg_score = class_grades.aggregate(Avg('score'))['score__avg'] or 0
+            avg_score = class_grades.aggregate(Avg('score'))['score__avg']
+            if avg_score is None:
+                avg_score = Decimal('0')
+            
             total_students = class_students.count()
             students_with_grades = class_students.filter(
                 id__in=class_grades.values_list('student_id', flat=True)
@@ -177,7 +192,7 @@ class ReportAnalyticsView(APIView):
             
             analytics.append({
                 'class_name': class_obj.name,
-                'average': round(avg_score, 1),
+                'average': round(float(avg_score), 1),
                 'total_students': total_students,
                 'active_students': students_with_grades,
                 'total_grades': class_grades.count()
@@ -220,15 +235,21 @@ class ReportAnalyticsView(APIView):
             if student_grades.count() < 2:
                 continue
             
-            first_avg = student_grades[:3].aggregate(Avg('score'))['score__avg'] or 0
-            latest_avg = student_grades.reverse()[:3].aggregate(Avg('score'))['score__avg'] or 0
-            change = latest_avg - first_avg
+            first_avg = student_grades[:3].aggregate(Avg('score'))['score__avg']
+            latest_avg = student_grades.reverse()[:3].aggregate(Avg('score'))['score__avg']
+            
+            if first_avg is None:
+                first_avg = Decimal('0')
+            if latest_avg is None:
+                latest_avg = Decimal('0')
+            
+            change = float(latest_avg) - float(first_avg)
             
             progress.append({
                 'student': student.get_full_name(),
                 'class': student.class_name,
-                'initial_average': round(first_avg, 1),
-                'current_average': round(latest_avg, 1),
+                'initial_average': round(float(first_avg), 1),
+                'current_average': round(float(latest_avg), 1),
                 'change': round(change, 1),
                 'trend': 'improving' if change > 0 else 'declining' if change < 0 else 'stable'
             })

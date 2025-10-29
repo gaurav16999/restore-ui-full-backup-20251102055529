@@ -443,6 +443,13 @@ export async function createGrade(accessToken: string, data: any) {
   });
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
+    // Handle validation errors - show first field error
+    if (error && typeof error === 'object') {
+      const firstError = Object.values(error)[0];
+      if (Array.isArray(firstError)) {
+        throw new Error(firstError[0]);
+      }
+    }
     throw new Error(error.detail || error.message || 'Failed to create grade');
   }
   return res.json();

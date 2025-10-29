@@ -344,7 +344,7 @@ const GradesNoDashboard = () => {
                   <SelectItem value="all">All Subjects</SelectItem>
                   {subjects.map((subject: any) => (
                     <SelectItem key={subject.id} value={subject.id.toString()}>
-                      {subject.name}
+                      {subject.title}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -521,7 +521,7 @@ const GradesNoDashboard = () => {
                   <SelectContent>
                     {subjects.map((subject: any) => (
                       <SelectItem key={subject.id} value={subject.id.toString()}>
-                        {subject.name}
+                        {subject.title}
                       </SelectItem>
                     ))}
                   </SelectContent>
