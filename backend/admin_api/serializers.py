@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Student, Teacher, Class, Subject, Activity, Event
+from .models import Student, Teacher, Class, Subject, Activity, Event, Grade
 from users.models import User
 
 
@@ -61,6 +61,37 @@ class SubjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Subject
         fields = ['id', 'name', 'classes_count', 'teachers_count', 'students_count']
+
+
+class GradeSerializer(serializers.ModelSerializer):
+    student_name = serializers.SerializerMethodField()
+    student_roll_no = serializers.SerializerMethodField()
+    subject_name = serializers.SerializerMethodField()
+    percentage = serializers.ReadOnlyField()
+    letter_grade = serializers.ReadOnlyField()
+    
+    class Meta:
+        model = Grade
+        fields = ['id', 'student', 'subject', 'student_name', 'student_roll_no', 
+                  'subject_name', 'grade_type', 'score', 'max_score', 'percentage', 
+                  'letter_grade', 'notes', 'date_recorded', 'created_at']
+    
+    def get_student_name(self, obj):
+        return obj.student.user.get_full_name() or obj.student.user.username
+    
+    def get_student_roll_no(self, obj):
+        return obj.student.roll_no
+    
+    def get_subject_name(self, obj):
+        return obj.subject.name
+
+
+class GradeStatsSerializer(serializers.Serializer):
+    total_grades = serializers.IntegerField()
+    grades_this_week = serializers.IntegerField()
+    class_average = serializers.FloatField()
+    top_performers = serializers.IntegerField()
+    pending_grades = serializers.IntegerField()
 
 
 class ActivitySerializer(serializers.ModelSerializer):

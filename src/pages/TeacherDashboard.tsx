@@ -1,8 +1,12 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BookOpen, Users, Calendar, ClipboardCheck, MessageSquare, FileText, BarChart3, Settings, Upload, Award, Shield, TrendingUp } from "lucide-react";
+import { faChartBar, faUsers, faCalendar, faClipboardCheck, faComments, faFileText, faChartLine, faCog, faUpload, faAward, faShield, faArrowTrendUp, faBook } from "@fortawesome/free-solid-svg-icons";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useQuery } from "@tanstack/react-query";
 import { getTeacherDashboard } from "@/lib/api";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { getTeacherSidebarItems } from "@/lib/teacherSidebar";
+import { useAuth } from "@/lib/auth";
+import { useErrorHandler, teacherFallbackData } from "@/hooks/use-error-handler";
 
 type Stat = { title: string; value: string; color?: string };
 type TodayClass = { subject: string; class: string; time: string; room: string; students: number };
@@ -18,30 +22,92 @@ type TeacherDashboardData = {
 };
 
 const TeacherDashboard = () => {
-  const sidebarItems = [
-    { icon: BarChart3, label: "Dashboard", active: true, path: "/teacher" },
-    { icon: Calendar, label: "My Classes" },
-    { icon: Users, label: "Students" },
-    { icon: ClipboardCheck, label: "Attendance", path: "/teacher/attendance" },
-    { icon: FileText, label: "Grades & Assessments" },
-    { icon: Upload, label: "Assignments" },
-    { icon: MessageSquare, label: "Messages" },
-    { icon: BookOpen, label: "Resources" },
-    { icon: Settings, label: "Settings" },
-  ];
-
-  const accessToken = window.localStorage.getItem('accessToken') || '';
+  const sidebarItems = getTeacherSidebarItems("/teacher");
+  const { accessToken } = useAuth();
+  const { handleError, retry } = useErrorHandler();
 
   const { data, isLoading, error } = useQuery<TeacherDashboardData>({
     queryKey: ['teacher-dashboard'],
-    queryFn: () => getTeacherDashboard(accessToken),
+    queryFn: () => getTeacherDashboard(accessToken!),
     enabled: !!accessToken,
+    retry: 2,
+    retryDelay: 1000,
   });
 
-  const stats: Stat[] = data?.stats ?? [];
-  const todayClasses: TodayClass[] = data?.today_classes ?? [];
-  const pendingTasks: PendingTask[] = data?.pending_tasks ?? [];
-  const topStudents: TopStudent[] = data?.top_students ?? [];
+  // Use fallback data when there's an error
+  const dashboardData = error ? teacherFallbackData.dashboard : data;
+
+  const stats: Stat[] = dashboardData?.stats ?? [];
+  const todayClasses: TodayClass[] = dashboardData?.today_classes ?? [];
+  const pendingTasks: PendingTask[] = dashboardData?.pending_tasks ?? [];
+  const topStudents: TopStudent[] = dashboardData?.top_students ?? [];
+
+  if (isLoading) {
+    return (
+      <DashboardLayout
+        title="Teacher Portal"
+        userName="Prof. Michael Anderson"
+        userRole="Senior Teacher"
+        sidebarItems={sidebarItems}
+      >
+        <div className="space-y-6">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="h-32 bg-gray-200 rounded"></div>
+              ))}
+            </div>
+            <div className="grid lg:grid-cols-2 gap-6 mt-6">
+              <div className="h-64 bg-gray-200 rounded"></div>
+              <div className="h-64 bg-gray-200 rounded"></div>
+            </div>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout
+        title="Teacher Portal"
+        userName="Prof. Michael Anderson"
+        userRole="Senior Teacher"
+        sidebarItems={sidebarItems}
+      >
+        <div className="space-y-6">
+          <div className="text-center p-8">
+            <h2 className="text-2xl font-bold text-red-600 mb-4">Backend Connection Error</h2>
+            <p className="text-gray-600 mb-4">
+              {error?.message || 'Failed to load teacher dashboard data'}
+            </p>
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+              <div className="flex">
+                <div className="ml-3">
+                  <p className="text-sm text-yellow-700">
+                    <strong>Quick Fix:</strong>
+                  </p>
+                  <ol className="mt-2 text-sm text-yellow-700 list-decimal list-inside">
+                    <li>Open Command Prompt or PowerShell as Administrator</li>
+                    <li>Navigate to: <code>C:\Users\Gauravkc\Desktop\New folder (7)\gleam-education-main\backend</code></li>
+                    <li>Run: <code>.venv\Scripts\activate</code></li>
+                    <li>Run: <code>python manage.py runserver 8000</code></li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark"
+            >
+              Retry Connection
+            </button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout
@@ -51,6 +117,24 @@ const TeacherDashboard = () => {
       sidebarItems={sidebarItems}
     >
       <div className="space-y-6">
+        {error && (
+          <div className="bg-orange-50 border-l-4 border-orange-400 p-4">
+            <div className="flex">
+              <div className="ml-3">
+                <p className="text-sm text-orange-700">
+                  <strong>Notice:</strong> Backend connection failed. Showing demo data. 
+                  <button 
+                    onClick={() => window.location.reload()} 
+                    className="ml-2 underline hover:no-underline"
+                  >
+                    Retry connection
+                  </button>
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        
         {/* Welcome Section */}
         <div className="animate-fade-in flex items-center justify-between">
           <div>
@@ -58,7 +142,7 @@ const TeacherDashboard = () => {
             <p className="text-muted-foreground text-lg">Here's your teaching schedule for today</p>
           </div>
           <div className="flex items-center gap-2 px-4 py-2 bg-primary-light rounded-xl">
-            <Shield className="w-5 h-5 text-primary" />
+            <FontAwesomeIcon icon={faShield} className="w-5 h-5 text-primary" />
             <span className="text-sm font-semibold text-primary">Secure Session</span>
           </div>
         </div>
@@ -74,8 +158,7 @@ const TeacherDashboard = () => {
                     {stat.title}
                   </CardTitle>
                   <div className="p-2 bg-primary-light rounded-lg">
-                    {/* icons in API are not provided; use generic icon */}
-                    <BookOpen className="w-5 h-5 text-primary" />
+                    <FontAwesomeIcon icon={faBook} className="w-5 h-5 text-primary" />
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -92,7 +175,7 @@ const TeacherDashboard = () => {
             <CardHeader className="bg-gradient-card border-b">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-primary-light rounded-lg">
-                  <Calendar className="w-5 h-5 text-primary" />
+                  <FontAwesomeIcon icon={faCalendar} className="w-5 h-5 text-primary" />
                 </div>
                 <div>
                   <CardTitle className="text-xl">Today's Schedule</CardTitle>
@@ -126,7 +209,7 @@ const TeacherDashboard = () => {
             <CardHeader className="bg-gradient-card border-b">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-secondary-light rounded-lg">
-                  <ClipboardCheck className="w-5 h-5 text-secondary" />
+                  <FontAwesomeIcon icon={faClipboardCheck} className="w-5 h-5 text-secondary" />
                 </div>
                 <div>
                   <CardTitle className="text-xl">Pending Tasks</CardTitle>
@@ -161,7 +244,7 @@ const TeacherDashboard = () => {
           <CardHeader className="bg-gradient-card border-b">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-accent-light rounded-lg">
-                <Award className="w-5 h-5 text-accent" />
+                <FontAwesomeIcon icon={faAward} className="w-5 h-5 text-accent" />
               </div>
               <div>
                 <CardTitle className="text-xl">Top Performing Students</CardTitle>

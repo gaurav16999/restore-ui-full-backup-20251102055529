@@ -1,9 +1,29 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ClipboardCheck, CheckCircle2, XCircle, Calendar, Users, Shield, TrendingUp } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { 
+  faClipboardCheck, 
+  faCheckCircle, 
+  faTimesCircle, 
+  faCalendar, 
+  faUsers, 
+  faShield, 
+  faChartLine, 
+  faChartBar, 
+  faChalkboardTeacher, 
+  faCalendarAlt, 
+  faClipboardList, 
+  faTrophy, 
+  faFileText, 
+  faDollarSign, 
+  faUserCog, 
+  faCog,
+  faArrowTrendUp,
+  faX
+} from "@fortawesome/free-solid-svg-icons";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { BookOpen, Calendar as CalendarIcon, MessageSquare, FileText, BarChart3, Settings, DollarSign, UserCog, ClipboardList } from "lucide-react";
+import { getAdminSidebarItems } from "@/lib/adminSidebar";
 import {
   Select,
   SelectContent,
@@ -12,43 +32,95 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { getClasses, getClassStudents, getAttendance, saveAttendanceRecords } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+
+interface Student {
+  id: string;
+  roll_no: string;
+  user__first_name: string;
+  user__last_name: string;
+}
+
+interface AttendanceRecord {
+  id?: number;
+  student: number;
+  class_section: number;
+  date: string;
+  status: 'present' | 'absent';
+  student_name?: string;
+  roll_no?: string;
+  class_name?: string;
+}
 
 const AdminAttendance = () => {
   const { toast } = useToast();
+  const { accessToken } = useAuth();
   const [selectedClass, setSelectedClass] = useState("");
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [attendance, setAttendance] = useState<{ [key: string]: 'present' | 'absent' }>({});
+  const [classes, setClasses] = useState<Array<{ id: string; name: string; students_count: number }>>([]);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const sidebarItems = [
-    { icon: BarChart3, label: "Dashboard", path: "/admin" },
-    { icon: Users, label: "Students", path: "/admin/students" },
-    { icon: BookOpen, label: "Teachers", path: "/admin/teachers" },
-    { icon: CalendarIcon, label: "Classes & Subjects", path: "/admin/classes" },
-    { icon: ClipboardList, label: "Attendance", active: true, path: "/admin/attendance" },
-    { icon: FileText, label: "Grades & Reports" },
-    { icon: DollarSign, label: "Fee Management" },
-    { icon: UserCog, label: "User Management" },
-    { icon: Settings, label: "Settings" },
-  ];
+  useEffect(() => {
+    const fetchClasses = async () => {
+      try {
+        const data = await getClasses();
+        // Handle paginated response
+        const classesArray = Array.isArray(data) ? data : (data?.results || []);
+        setClasses(classesArray);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to fetch classes. Please try again.",
+          variant: "destructive",
+        });
+        setClasses([]);
+      }
+    };
+    
+    fetchClasses();
+  }, []);
 
-  const classes = [
-    { id: "10a", name: "Grade 10A - Mathematics", students: 32 },
-    { id: "11b", name: "Grade 11B - Physics", students: 28 },
-    { id: "10b", name: "Grade 10B - Chemistry", students: 30 },
-  ];
+  useEffect(() => {
+    const fetchStudents = async () => {
+      if (!selectedClass) return;
+      
+      try {
+        setLoading(true);
+        const data = await getClassStudents(selectedClass);
+        // Handle paginated response
+        const studentsData = data.students || [];
+        setStudents(studentsData);
+        
+        // Fetch existing attendance for the selected date
+        const attendanceData = await getAttendance(selectedClass, selectedDate);
+        const attendanceMap: { [key: string]: 'present' | 'absent' } = {};
+        const attendanceArray = Array.isArray(attendanceData) ? attendanceData : [];
+        attendanceArray.forEach((record: AttendanceRecord) => {
+          attendanceMap[record.student.toString()] = record.status;
+        });
+        setAttendance(attendanceMap);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to fetch students. Please try again.",
+          variant: "destructive",
+        });
+        setStudents([]);
+        setAttendance({});
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchStudents();
+  }, [selectedClass, selectedDate, accessToken]);
 
-  const students = [
-    { id: "1", name: "Emma Wilson", rollNo: "101", class: "10A" },
-    { id: "2", name: "James Chen", rollNo: "102", class: "10A" },
-    { id: "3", name: "Sofia Rodriguez", rollNo: "103", class: "10A" },
-    { id: "4", name: "Michael Brown", rollNo: "104", class: "10A" },
-    { id: "5", name: "Olivia Davis", rollNo: "105", class: "10A" },
-    { id: "6", name: "Ethan Martinez", rollNo: "106", class: "10A" },
-    { id: "7", name: "Ava Garcia", rollNo: "107", class: "10A" },
-    { id: "8", name: "Noah Anderson", rollNo: "108", class: "10A" },
-    { id: "9", name: "Isabella Thomas", rollNo: "109", class: "10A" },
-    { id: "10", name: "Liam Jackson", rollNo: "110", class: "10A" },
-  ];
+  const sidebarItems = getAdminSidebarItems("/admin/attendance");
+
+
 
   const markAllPresent = () => {
     const newAttendance: { [key: string]: 'present' | 'absent' } = {};
@@ -81,14 +153,40 @@ const AdminAttendance = () => {
     }));
   };
 
-  const saveAttendance = () => {
-    const presentCount = Object.values(attendance).filter(status => status === 'present').length;
-    const absentCount = Object.values(attendance).filter(status => status === 'absent').length;
-    
-    toast({
-      title: "Attendance Saved",
-      description: `${presentCount} present, ${absentCount} absent. Attendance recorded for ${selectedDate}.`,
-    });
+  const saveAttendance = async () => {
+    if (!selectedClass) {
+      toast({
+        title: "Error",
+        description: "Please select a class first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const attendanceRecords = students.map(student => ({
+        student: parseInt(student.id),
+        class_section: parseInt(selectedClass),
+        date: selectedDate,
+        status: attendance[student.id] || 'absent'
+      }));
+
+      await saveAttendanceRecords(attendanceRecords);
+      
+      toast({
+        title: "Attendance Saved",
+        description: `${presentCount} present, ${absentCount} absent. Attendance recorded for ${selectedDate}.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save attendance. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const presentCount = Object.values(attendance).filter(status => status === 'present').length;
@@ -115,7 +213,7 @@ const AdminAttendance = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-primary-light rounded-lg">
-                  <Calendar className="w-6 h-6 text-primary" />
+                  <FontAwesomeIcon icon={faCalendar} className="w-6 h-6 text-primary" />
                 </div>
                 <div>
                   <CardTitle className="text-xl">Attendance Control Panel</CardTitle>
@@ -123,7 +221,7 @@ const AdminAttendance = () => {
                 </div>
               </div>
               <div className="flex items-center gap-2 px-3 py-1.5 bg-primary-light rounded-lg">
-                <Shield className="w-4 h-4 text-primary" />
+                <FontAwesomeIcon icon={faShield} className="w-4 h-4 text-primary" />
                 <span className="text-sm font-medium text-primary">Secure Session</span>
               </div>
             </div>
@@ -132,7 +230,7 @@ const AdminAttendance = () => {
             <div className="grid md:grid-cols-3 gap-6">
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Users className="w-4 h-4 text-primary" />
+                  <FontAwesomeIcon icon={faUsers} className="w-4 h-4 text-primary" />
                   Select Class
                 </label>
                 <Select value={selectedClass} onValueChange={setSelectedClass}>
@@ -144,7 +242,7 @@ const AdminAttendance = () => {
                       <SelectItem key={cls.id} value={cls.id}>
                         <div className="flex items-center gap-2">
                           <div className="w-2 h-2 rounded-full bg-primary"></div>
-                          {cls.name} • {cls.students} students
+                          {cls.name} • {cls.students_count} students
                         </div>
                       </SelectItem>
                     ))}
@@ -153,7 +251,7 @@ const AdminAttendance = () => {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-primary" />
+                  <FontAwesomeIcon icon={faCalendar} className="w-4 h-4 text-primary" />
                   Date
                 </label>
                 <input
@@ -171,7 +269,7 @@ const AdminAttendance = () => {
                     variant="outline" 
                     className="flex-1 h-11 border-2 hover:border-success hover:bg-success-light hover:text-success transition-all"
                   >
-                    <CheckCircle2 className="w-4 h-4 mr-1.5" />
+                    <FontAwesomeIcon icon={faCheckCircle} className="w-4 h-4 mr-1.5" />
                     All Present
                   </Button>
                   <Button 
@@ -179,7 +277,7 @@ const AdminAttendance = () => {
                     variant="outline" 
                     className="flex-1 h-11 border-2 hover:border-destructive hover:bg-destructive-light hover:text-destructive transition-all"
                   >
-                    <XCircle className="w-4 h-4 mr-1.5" />
+                    <FontAwesomeIcon icon={faTimesCircle} className="w-4 h-4 mr-1.5" />
                     All Absent
                   </Button>
                 </div>
@@ -195,7 +293,7 @@ const AdminAttendance = () => {
               <CardContent className="pt-6">
                 <div className="text-center">
                   <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-primary-light flex items-center justify-center">
-                    <Users className="w-7 h-7 text-primary" />
+                    <FontAwesomeIcon icon={faUsers} className="w-7 h-7 text-primary" />
                   </div>
                   <p className="text-3xl font-bold mb-1">{students.length}</p>
                   <p className="text-sm font-medium text-muted-foreground">Total Students</p>
@@ -206,7 +304,7 @@ const AdminAttendance = () => {
               <CardContent className="pt-6">
                 <div className="text-center">
                   <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-success-light flex items-center justify-center">
-                    <CheckCircle2 className="w-7 h-7 text-success" />
+                    <FontAwesomeIcon icon={faCheckCircle} className="w-7 h-7 text-success" />
                   </div>
                   <p className="text-3xl font-bold mb-1 text-success">{presentCount}</p>
                   <p className="text-sm font-medium text-muted-foreground">Present Today</p>
@@ -217,7 +315,7 @@ const AdminAttendance = () => {
               <CardContent className="pt-6">
                 <div className="text-center">
                   <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-destructive-light flex items-center justify-center">
-                    <XCircle className="w-7 h-7 text-destructive" />
+                    <FontAwesomeIcon icon={faX} className="w-7 h-7 text-destructive" />
                   </div>
                   <p className="text-3xl font-bold mb-1 text-destructive">{absentCount}</p>
                   <p className="text-sm font-medium text-muted-foreground">Absent Today</p>
@@ -228,7 +326,7 @@ const AdminAttendance = () => {
               <CardContent className="pt-6">
                 <div className="text-center">
                   <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-white/20 flex items-center justify-center">
-                    <TrendingUp className="w-7 h-7 text-white" />
+                    <FontAwesomeIcon icon={faArrowTrendUp} className="w-7 h-7 text-white" />
                   </div>
                   <p className="text-3xl font-bold mb-1 text-white">
                     {totalMarked > 0 ? Math.round((presentCount / students.length) * 100) : 0}%
@@ -247,7 +345,7 @@ const AdminAttendance = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-primary-light rounded-lg">
-                    <ClipboardCheck className="w-5 h-5 text-primary" />
+                    <FontAwesomeIcon icon={faClipboardCheck} className="w-5 h-5 text-primary" />
                   </div>
                   <div>
                     <CardTitle className="text-xl">Student Attendance</CardTitle>
@@ -281,11 +379,11 @@ const AdminAttendance = () => {
                           ? 'bg-destructive text-white'
                           : 'bg-primary-light text-primary'
                       }`}>
-                        {student.rollNo}
+                        {student.roll_no}
                       </div>
                       <div>
-                        <p className="font-semibold text-base">{student.name}</p>
-                        <p className="text-sm text-muted-foreground">Roll No: {student.rollNo} • Class {student.class}</p>
+                        <p className="font-semibold text-base">{`${student.user__first_name} ${student.user__last_name}`}</p>
+                        <p className="text-sm text-muted-foreground">Roll No: {student.roll_no}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -301,7 +399,7 @@ const AdminAttendance = () => {
                             : 'border-2 hover:border-success hover:bg-success-light hover:text-success'
                         }`}
                       >
-                        <CheckCircle2 className="w-5 h-5 mr-2" />
+                        <FontAwesomeIcon icon={faCheckCircle} className="w-5 h-5 mr-2" />
                         Present
                       </Button>
                       <Button
@@ -316,7 +414,7 @@ const AdminAttendance = () => {
                             : 'border-2 hover:border-destructive hover:bg-destructive-light hover:text-destructive'
                         }`}
                       >
-                        <XCircle className="w-5 h-5 mr-2" />
+                        <FontAwesomeIcon icon={faX} className="w-5 h-5 mr-2" />
                         Absent
                       </Button>
                     </div>
@@ -327,7 +425,7 @@ const AdminAttendance = () => {
               <div className="mt-8 flex items-center justify-between p-6 bg-primary-light rounded-xl border-2 border-primary/20">
                 <div className="flex items-center gap-4">
                   <div className="p-3 bg-white rounded-lg">
-                    <Shield className="w-6 h-6 text-primary" />
+                    <FontAwesomeIcon icon={faShield} className="w-6 h-6 text-primary" />
                   </div>
                   <div>
                     <p className="font-semibold text-foreground">Ready to save attendance?</p>
@@ -340,7 +438,7 @@ const AdminAttendance = () => {
                   disabled={totalMarked === 0}
                   className="min-w-[180px] h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all"
                 >
-                  <ClipboardCheck className="w-5 h-5 mr-2" />
+                  <FontAwesomeIcon icon={faClipboardCheck} className="w-5 h-5 mr-2" />
                   Save Attendance
                 </Button>
               </div>
@@ -352,7 +450,7 @@ const AdminAttendance = () => {
           <Card className="animate-fade-in shadow-xl border-2">
             <CardContent className="py-16 text-center">
               <div className="w-24 h-24 mx-auto mb-6 rounded-2xl bg-primary-light flex items-center justify-center">
-                <ClipboardCheck className="w-12 h-12 text-primary" />
+                <FontAwesomeIcon icon={faClipboardCheck} className="w-12 h-12 text-primary" />
               </div>
               <h3 className="text-2xl font-bold mb-2">Select a Class to Begin</h3>
               <p className="text-lg text-muted-foreground max-w-md mx-auto">

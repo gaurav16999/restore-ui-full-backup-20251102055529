@@ -4,10 +4,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from django.db.models import Count, Avg
 from django.contrib.auth import get_user_model
-from .models import Student, Teacher, Class, Subject, Activity, Event
+from datetime import datetime, timedelta
+from .models import Student, Teacher, Class, Subject, Activity, Event, Grade
 from .serializers import (
     StudentSerializer, TeacherSerializer, ClassSerializer, 
     SubjectSerializer, ActivitySerializer, EventSerializer,
+    GradeSerializer, GradeStatsSerializer,
     DashboardStatsSerializer
 )
 
@@ -112,6 +114,44 @@ class StudentDetailView(APIView):
         except Student.DoesNotExist:
             return Response({'error': 'Student not found'}, status=status.HTTP_404_NOT_FOUND)
     
+    def patch(self, request, pk):
+        try:
+            student = Student.objects.select_related('user').get(pk=pk)
+            
+            # Handle status toggle
+            if 'toggle_status' in request.data:
+                student.is_active = not student.is_active
+                student.save()
+                serializer = StudentSerializer(student)
+                return Response(serializer.data)
+            
+            # Regular patch update
+            data = request.data.copy()
+            
+            # Update user fields if provided
+            if student.user:
+                user = student.user
+                if 'username' in data:
+                    user.username = data.pop('username')
+                if 'email' in data:
+                    user.email = data.pop('email')
+                if 'first_name' in data:
+                    user.first_name = data.pop('first_name')
+                if 'last_name' in data:
+                    user.last_name = data.pop('last_name')
+                if 'password' in data and data['password']:
+                    user.set_password(data.pop('password'))
+                user.save()
+            
+            # Update student fields
+            serializer = StudentSerializer(student, data=data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Student.DoesNotExist:
+            return Response({'error': 'Student not found'}, status=status.HTTP_404_NOT_FOUND)
+    
     def delete(self, request, pk):
         try:
             student = Student.objects.get(pk=pk)
@@ -170,6 +210,44 @@ class TeacherDetailView(APIView):
     def put(self, request, pk):
         try:
             teacher = Teacher.objects.select_related('user').get(pk=pk)
+            data = request.data.copy()
+            
+            # Update user fields if provided
+            if teacher.user:
+                user = teacher.user
+                if 'username' in data:
+                    user.username = data.pop('username')
+                if 'email' in data:
+                    user.email = data.pop('email')
+                if 'first_name' in data:
+                    user.first_name = data.pop('first_name')
+                if 'last_name' in data:
+                    user.last_name = data.pop('last_name')
+                if 'password' in data and data['password']:
+                    user.set_password(data.pop('password'))
+                user.save()
+            
+            # Update teacher fields
+            serializer = TeacherSerializer(teacher, data=data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Teacher.DoesNotExist:
+            return Response({'error': 'Teacher not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    def patch(self, request, pk):
+        try:
+            teacher = Teacher.objects.select_related('user').get(pk=pk)
+            
+            # Handle status toggle
+            if 'toggle_status' in request.data:
+                teacher.is_active = not teacher.is_active
+                teacher.save()
+                serializer = TeacherSerializer(teacher)
+                return Response(serializer.data)
+            
+            # Regular patch update
             data = request.data.copy()
             
             # Update user fields if provided
@@ -563,3 +641,235 @@ class SubjectCreateView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# Grade Management Views
+class GradeListView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        grades = Grade.objects.all().select_related('student__user', 'subject')
+        serializer = GradeSerializer(grades, many=True)
+        return Response(serializer.data)
+    
+    def post(self, request):
+        serializer = GradeSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            
+            # Log activity
+            Activity.objects.create(
+                action=f'New grade added for {serializer.instance.student.user.get_full_name()}',
+                user='Admin',
+                activity_type='assignment'
+            )
+            
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class GradeDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, pk):
+        try:
+            grade = Grade.objects.select_related('student__user', 'subject').get(pk=pk)
+            serializer = GradeSerializer(grade)
+            return Response(serializer.data)
+        except Grade.DoesNotExist:
+            return Response({'error': 'Grade not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    def put(self, request, pk):
+        try:
+            grade = Grade.objects.get(pk=pk)
+            serializer = GradeSerializer(grade, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Grade.DoesNotExist:
+            return Response({'error': 'Grade not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    def delete(self, request, pk):
+        try:
+            grade = Grade.objects.get(pk=pk)
+            grade.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Grade.DoesNotExist:
+            return Response({'error': 'Grade not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+class GradeStatsView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        # Calculate grade statistics
+        total_grades = Grade.objects.count()
+        
+        # Grades added this week
+        week_ago = datetime.now() - timedelta(days=7)
+        grades_this_week = Grade.objects.filter(created_at__gte=week_ago).count()
+        
+        # Class average
+        all_grades = Grade.objects.all()
+        if all_grades.exists():
+            total_percentage = sum([grade.percentage for grade in all_grades])
+            class_average = round(total_percentage / total_grades, 1)
+        else:
+            class_average = 0
+        
+        # Top performers (A grade - 90% and above)
+        top_performers = sum([1 for grade in all_grades if grade.percentage >= 90])
+        
+        # Pending grades (mock data - could be assignments without grades)
+        pending_grades = 12  # This could be calculated based on assignments without grades
+        
+        stats = {
+            'total_grades': total_grades,
+            'grades_this_week': grades_this_week,
+            'class_average': class_average,
+            'top_performers': top_performers,
+            'pending_grades': pending_grades
+        }
+        
+        serializer = GradeStatsSerializer(stats)
+        return Response(serializer.data)
+
+
+# Reports and Analytics Views
+class ReportsView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        # Generate student report cards
+        students = Student.objects.filter(is_active=True).select_related('user')
+        reports = []
+        
+        for student in students:
+            grades = Grade.objects.filter(student=student)
+            if grades.exists():
+                total_percentage = sum([grade.percentage for grade in grades])
+                overall_average = round(total_percentage / grades.count(), 1)
+            else:
+                overall_average = 0
+            
+            # Calculate rank (simplified)
+            all_students = Student.objects.filter(is_active=True)
+            rank = 1
+            for other_student in all_students:
+                other_grades = Grade.objects.filter(student=other_student)
+                if other_grades.exists():
+                    other_avg = sum([g.percentage for g in other_grades]) / other_grades.count()
+                    if other_avg > overall_average:
+                        rank += 1
+            
+            # Mock subject-wise data
+            subjects_data = [
+                {'name': 'Mathematics', 'average': overall_average + 5},
+                {'name': 'Science', 'average': overall_average - 3},
+                {'name': 'English', 'average': overall_average + 2},
+                {'name': 'History', 'average': overall_average - 1},
+            ]
+            
+            reports.append({
+                'id': student.id,
+                'student_name': student.user.get_full_name() or student.user.username,
+                'roll_no': student.roll_no,
+                'class_name': student.class_name,
+                'overall_average': overall_average,
+                'rank': rank,
+                'attendance': float(student.attendance_percentage),
+                'subjects': subjects_data
+            })
+        
+        return Response(reports)
+
+
+class ClassAnalyticsView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        # Calculate class analytics
+        all_grades = Grade.objects.all()
+        
+        if all_grades.exists():
+            total_percentage = sum([grade.percentage for grade in all_grades])
+            class_average = round(total_percentage / all_grades.count(), 1)
+            
+            # Top performers (A grade - 90% and above)
+            top_performers = sum([1 for grade in all_grades if grade.percentage >= 90])
+            
+            # At risk students (below 60%)
+            at_risk = sum([1 for grade in all_grades if grade.percentage < 60])
+        else:
+            class_average = 0
+            top_performers = 0
+            at_risk = 0
+        
+        # Mock improvement rate
+        improvement_rate = 78
+        trend = 2.5
+        
+        analytics = {
+            'class_average': class_average,
+            'top_performers': top_performers,
+            'at_risk': at_risk,
+            'improvement_rate': improvement_rate,
+            'trend': trend
+        }
+        
+        return Response(analytics)
+
+
+class StudentProgressView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        # Generate student progress data
+        students = Student.objects.filter(is_active=True).select_related('user')[:10]
+        progress_data = []
+        
+        for student in students:
+            grades = Grade.objects.filter(student=student)
+            if grades.exists():
+                current_average = round(sum([grade.percentage for grade in grades]) / grades.count(), 1)
+            else:
+                current_average = 75
+            
+            # Mock trend data
+            import random
+            trend = random.randint(-10, 15)
+            
+            progress_data.append({
+                'name': student.user.get_full_name() or student.user.username,
+                'roll_no': student.roll_no,
+                'class': student.class_name,
+                'current_average': current_average,
+                'trend': trend
+            })
+        
+        return Response(progress_data)
+
+
+class GradeDistributionView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        # Calculate grade distribution
+        all_grades = Grade.objects.all()
+        distribution = {
+            'A': 0, 'B': 0, 'C': 0, 'D': 0, 'F': 0
+        }
+        
+        for grade in all_grades:
+            letter_grade = grade.letter_grade
+            if letter_grade in distribution:
+                distribution[letter_grade] += 1
+        
+        # Convert to list format for frontend
+        distribution_list = [
+            {'grade': grade, 'count': count, 'percentage': round((count / len(all_grades)) * 100, 1) if all_grades.exists() else 0}
+            for grade, count in distribution.items()
+        ]
+        
+        return Response(distribution_list)

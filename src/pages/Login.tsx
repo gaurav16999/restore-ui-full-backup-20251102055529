@@ -12,15 +12,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { GraduationCap, Users, BookOpen, UserCircle } from "lucide-react";
-import { postToken, getProfile } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { useToast } from "@/hooks/use-toast";
 
 const Login = () => {
   const navigate = useNavigate();
-  const { user, loading } = useAuth();
+  const { user, login, loading } = useAuth();
+  const { toast } = useToast();
   const [selectedRole, setSelectedRole] = useState<string>("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const roles = [
     { id: "admin", title: "Administrator", icon: Users, path: "/admin" },
@@ -39,17 +41,36 @@ const Login = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
+    
     try {
-      const tokenData = await postToken(email, password);
-      window.localStorage.setItem('accessToken', tokenData.access);
-      window.localStorage.setItem('refreshToken', tokenData.refresh);
-      const profile = await getProfile(tokenData.access);
-      // navigate by role from profile
-      if (profile.role === 'admin') navigate('/admin');
-      else if (profile.role === 'teacher') navigate('/teacher');
-      else navigate('/student');
-    } catch (err: any) {
-      alert(err.message || 'Login failed');
+      await login(email, password);
+      toast({
+        title: "Login successful",
+        description: "Welcome back!",
+      });
+      // Navigation will be handled by the useEffect above when user state updates
+    } catch (error: any) {
+      console.error('Login failed:', error);
+      
+      // Check if this is demo mode activation
+      if (error.message && error.message.includes('Demo mode activated')) {
+        toast({
+          title: "Demo Mode Active",
+          description: "Backend unavailable. Using demo data for demonstration.",
+          variant: "default",
+        });
+        // Don't prevent navigation in demo mode since user is actually logged in
+      } else {
+        // Handle real authentication errors
+        toast({
+          title: "Login failed", 
+          description: error.message || "Invalid credentials. Please check your username and password.",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -124,8 +145,8 @@ const Login = () => {
               />
             </div>
 
-            <Button type="submit" className="w-full" size="lg" disabled={!selectedRole}>
-              Sign In
+            <Button type="submit" className="w-full" size="lg" disabled={!selectedRole || isSubmitting}>
+              {isSubmitting ? "Signing In..." : "Sign In"}
             </Button>
 
             <div className="text-center text-sm text-muted-foreground">

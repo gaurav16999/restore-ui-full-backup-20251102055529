@@ -1,8 +1,12 @@
 import { ReactNode, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, Menu, X, LogOut, Bell, User } from "lucide-react";
+import { GraduationCap, Menu, X, LogOut, User } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import { useAuth } from "@/lib/auth";
+import NotificationDropdown from "@/components/NotificationDropdown";
+import NotificationBar from "@/components/NotificationBar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,7 +22,7 @@ interface DashboardLayoutProps {
   userName: string;
   userRole: string;
   sidebarItems: {
-    icon: React.ElementType;
+    icon: IconDefinition;
     label: string;
     path?: string;
     active?: boolean;
@@ -42,45 +46,45 @@ const DashboardLayout = ({
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gray-50">
+      {/* Notification Bar */}
+      <NotificationBar />
+      
       {/* Top Navigation Bar */}
-      <header className="bg-sidebar border-b sticky top-0 z-50 shadow-xl">
+      <header className="bg-slate-800 border-b sticky top-0 z-40 shadow-xl">
         <div className="flex items-center justify-between px-4 py-4">
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden text-sidebar-foreground hover:bg-sidebar-accent"
+              className="lg:hidden text-white hover:bg-slate-700"
             >
               {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </Button>
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-xl bg-gradient-primary flex items-center justify-center shadow-lg">
+              <div className="w-11 h-11 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg">
                 <GraduationCap className="w-6 h-6 text-white" />
               </div>
               <div className="hidden sm:block">
-                <h1 className="text-xl font-bold text-sidebar-foreground">EduManage</h1>
-                <p className="text-xs text-sidebar-foreground/70">{title}</p>
+                <h1 className="text-xl font-bold text-white">EduManage</h1>
+                <p className="text-xs text-gray-300">{title}</p>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" className="relative text-sidebar-foreground hover:bg-sidebar-accent">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full ring-2 ring-sidebar-background"></span>
-            </Button>
+            <NotificationDropdown />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="gap-2 hover:bg-sidebar-accent text-sidebar-foreground">
-                  <div className="w-9 h-9 rounded-full bg-gradient-primary flex items-center justify-center shadow-md">
+                <Button variant="ghost" className="gap-2 hover:bg-slate-700 text-white">
+                  <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center shadow-md">
                     <User className="w-5 h-5 text-white" />
                   </div>
                   <div className="hidden md:block text-left">
                     <p className="text-sm font-semibold">{userName}</p>
-                    <p className="text-xs text-sidebar-foreground/70">{userRole}</p>
+                    <p className="text-xs text-gray-300">{userRole}</p>
                   </div>
                 </Button>
               </DropdownMenuTrigger>
@@ -105,23 +109,22 @@ const DashboardLayout = ({
         <aside
           className={`${
             sidebarOpen ? "translate-x-0" : "-translate-x-full"
-          } fixed lg:static lg:translate-x-0 inset-y-0 left-0 z-40 w-64 bg-sidebar border-r border-sidebar-border transition-transform duration-300 mt-[65px] lg:mt-0 shadow-xl`}
+          } fixed lg:static lg:translate-x-0 inset-y-0 left-0 z-40 w-64 bg-slate-800 border-r border-slate-700 transition-transform duration-300 mt-[81px] lg:mt-0 shadow-xl`}
         >
           <nav className="p-4 space-y-1.5 h-full overflow-y-auto">
             {sidebarItems.map((item, index) => {
-              const Icon = item.icon;
               return (
                 <Button
                   key={index}
                   variant={item.active ? "secondary" : "ghost"}
                   className={`w-full justify-start gap-3 h-11 text-sm font-medium transition-all ${
                     item.active 
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm" 
-                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      ? "bg-slate-700 text-white shadow-sm" 
+                      : "text-gray-300 hover:bg-slate-700 hover:text-white"
                   }`}
                   onClick={() => item.path && navigate(item.path)}
                 >
-                  <Icon className="w-5 h-5" />
+                  <FontAwesomeIcon icon={item.icon} className="w-5 h-5" />
                   <span>{item.label}</span>
                 </Button>
               );
@@ -138,7 +141,7 @@ const DashboardLayout = ({
         )}
 
         {/* Main Content */}
-        <main className="flex-1 p-6">{children}</main>
+        <main className="flex-1 p-4 md:p-6 bg-gray-50 min-h-screen">{children}</main>
       </div>
     </div>
   );

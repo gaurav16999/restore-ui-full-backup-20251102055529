@@ -1,9 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ClipboardCheck, CheckCircle2, XCircle, Calendar, Users, Shield, TrendingUp } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { 
+  faClipboardCheck, 
+  faCheckCircle, 
+  faTimesCircle, 
+  faCalendar,
+  faShield,
+  faUsers,
+  faChartLine
+} from "@fortawesome/free-solid-svg-icons";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { BookOpen, Calendar as CalendarIcon, MessageSquare, FileText, BarChart3, Settings, Upload, Award } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -12,43 +20,67 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { getTeacherSidebarItems } from "@/lib/teacherSidebar";
+import { useAuth } from "@/lib/auth";
+import { getTeacherAttendance, getTeacherClasses, submitTeacherAttendance } from "@/lib/api";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const TeacherAttendance = () => {
   const { toast } = useToast();
+  const { accessToken } = useAuth();
   const [selectedClass, setSelectedClass] = useState("");
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [attendance, setAttendance] = useState<{ [key: string]: 'present' | 'absent' }>({});
+  const [classOptions, setClassOptions] = useState<Array<{ id: string; name: string; students?: number }>>([]);
+  const [students, setStudents] = useState<Array<{ id: string; name: string; rollNo: string; class: string }>>([]);
+  const [loading, setLoading] = useState<boolean>(false);
 
-  const sidebarItems = [
-    { icon: BarChart3, label: "Dashboard", path: "/teacher" },
-    { icon: CalendarIcon, label: "My Classes" },
-    { icon: Users, label: "Students" },
-    { icon: ClipboardCheck, label: "Attendance", active: true, path: "/teacher/attendance" },
-    { icon: FileText, label: "Grades & Assessments" },
-    { icon: Upload, label: "Assignments" },
-    { icon: MessageSquare, label: "Messages" },
-    { icon: BookOpen, label: "Resources" },
-    { icon: Settings, label: "Settings" },
-  ];
+  const sidebarItems = getTeacherSidebarItems("/teacher/attendance");
 
-  const classes = [
-    { id: "10a", name: "Grade 10A - Mathematics", students: 32 },
-    { id: "11b", name: "Grade 11B - Physics", students: 28 },
-    { id: "10b", name: "Grade 10B - Chemistry", students: 30 },
-  ];
+  // Load teacher classes
+  useEffect(() => {
+    const loadClasses = async () => {
+      if (!accessToken) return;
+      try {
+        const cls = await getTeacherClasses(accessToken);
+        setClassOptions((cls || []).map((c: any) => ({ id: String(c.id), name: c.name, students: c.student_count })));
+      } catch (err: any) {
+        toast({ title: "Error", description: err?.message || "Failed to load classes", variant: "destructive" });
+      }
+    };
+    loadClasses();
+  }, [accessToken]);
 
-  const students = [
-    { id: "1", name: "Emma Wilson", rollNo: "101", class: "10A" },
-    { id: "2", name: "James Chen", rollNo: "102", class: "10A" },
-    { id: "3", name: "Sofia Rodriguez", rollNo: "103", class: "10A" },
-    { id: "4", name: "Michael Brown", rollNo: "104", class: "10A" },
-    { id: "5", name: "Olivia Davis", rollNo: "105", class: "10A" },
-    { id: "6", name: "Ethan Martinez", rollNo: "106", class: "10A" },
-    { id: "7", name: "Ava Garcia", rollNo: "107", class: "10A" },
-    { id: "8", name: "Noah Anderson", rollNo: "108", class: "10A" },
-    { id: "9", name: "Isabella Thomas", rollNo: "109", class: "10A" },
-    { id: "10", name: "Liam Jackson", rollNo: "110", class: "10A" },
-  ];
+  // Load attendance when class/date changes
+  useEffect(() => {
+    const loadAttendance = async () => {
+      if (!accessToken || !selectedClass) return;
+      setLoading(true);
+      try {
+        const data = await getTeacherAttendance(accessToken, selectedClass, selectedDate);
+        const list = (data?.attendance || []).map((s: any) => ({
+          id: String(s.student_id),
+          name: s.student_name,
+          rollNo: String(s.roll_no),
+          class: data?.class_name || "",
+        }));
+        setStudents(list);
+        // Initialize attendance state from API (ignore 'not_marked')
+        const mapped: { [key: string]: 'present' | 'absent' } = {};
+        for (const s of data?.attendance || []) {
+          if (s.status === 'present' || s.status === 'absent') {
+            mapped[String(s.student_id)] = s.status;
+          }
+        }
+        setAttendance(mapped);
+      } catch (err: any) {
+        toast({ title: "Error", description: err?.message || "Failed to load attendance", variant: "destructive" });
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadAttendance();
+  }, [accessToken, selectedClass, selectedDate]);
 
   const markAllPresent = () => {
     const newAttendance: { [key: string]: 'present' | 'absent' } = {};
@@ -81,14 +113,28 @@ const TeacherAttendance = () => {
     }));
   };
 
-  const saveAttendance = () => {
-    const presentCount = Object.values(attendance).filter(status => status === 'present').length;
-    const absentCount = Object.values(attendance).filter(status => status === 'absent').length;
-    
-    toast({
-      title: "Attendance Saved",
-      description: `${presentCount} present, ${absentCount} absent. Attendance recorded for ${selectedDate}.`,
-    });
+  const saveAttendance = async () => {
+    try {
+      if (!accessToken || !selectedClass) return;
+      const records = students
+        .filter((s) => attendance[s.id])
+        .map((s) => ({ student_id: Number(s.id), status: attendance[s.id] }));
+
+      await submitTeacherAttendance(accessToken, {
+        class_id: Number(selectedClass),
+        date: selectedDate,
+        attendance: records,
+      });
+
+      const presentCount = Object.values(attendance).filter(status => status === 'present').length;
+      const absentCount = Object.values(attendance).filter(status => status === 'absent').length;
+      toast({
+        title: "Attendance Saved",
+        description: `${presentCount} present, ${absentCount} absent. Attendance recorded for ${selectedDate}.`,
+      });
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.message || "Failed to save attendance", variant: "destructive" });
+    }
   };
 
   const presentCount = Object.values(attendance).filter(status => status === 'present').length;
@@ -115,7 +161,7 @@ const TeacherAttendance = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-primary-light rounded-lg">
-                  <Calendar className="w-6 h-6 text-primary" />
+                  <FontAwesomeIcon icon={faCalendar} className="w-6 h-6 text-primary" />
                 </div>
                 <div>
                   <CardTitle className="text-xl">Attendance Control Panel</CardTitle>
@@ -123,7 +169,7 @@ const TeacherAttendance = () => {
                 </div>
               </div>
               <div className="flex items-center gap-2 px-3 py-1.5 bg-primary-light rounded-lg">
-                <Shield className="w-4 h-4 text-primary" />
+                <FontAwesomeIcon icon={faShield} className="w-4 h-4 text-primary" />
                 <span className="text-sm font-medium text-primary">Secure Session</span>
               </div>
             </div>
@@ -132,7 +178,7 @@ const TeacherAttendance = () => {
             <div className="grid md:grid-cols-3 gap-6">
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Users className="w-4 h-4 text-primary" />
+                  <FontAwesomeIcon icon={faUsers} className="w-4 h-4 text-primary" />
                   Select Class
                 </label>
                 <Select value={selectedClass} onValueChange={setSelectedClass}>
@@ -140,11 +186,11 @@ const TeacherAttendance = () => {
                     <SelectValue placeholder="Choose a class..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {classes.map((cls) => (
+                    {classOptions.map((cls) => (
                       <SelectItem key={cls.id} value={cls.id}>
                         <div className="flex items-center gap-2">
                           <div className="w-2 h-2 rounded-full bg-primary"></div>
-                          {cls.name} • {cls.students} students
+                          {cls.name} • {cls.students ?? ""} students
                         </div>
                       </SelectItem>
                     ))}
@@ -153,7 +199,7 @@ const TeacherAttendance = () => {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-primary" />
+                  <FontAwesomeIcon icon={faCalendar} className="w-4 h-4 text-primary" />
                   Date
                 </label>
                 <input
@@ -171,7 +217,7 @@ const TeacherAttendance = () => {
                     variant="outline" 
                     className="flex-1 h-11 border-2 hover:border-success hover:bg-success-light hover:text-success transition-all"
                   >
-                    <CheckCircle2 className="w-4 h-4 mr-1.5" />
+                    <FontAwesomeIcon icon={faCheckCircle} className="w-4 h-4 mr-1.5" />
                     All Present
                   </Button>
                   <Button 
@@ -179,7 +225,7 @@ const TeacherAttendance = () => {
                     variant="outline" 
                     className="flex-1 h-11 border-2 hover:border-destructive hover:bg-destructive-light hover:text-destructive transition-all"
                   >
-                    <XCircle className="w-4 h-4 mr-1.5" />
+                    <FontAwesomeIcon icon={faTimesCircle} className="w-4 h-4 mr-1.5" />
                     All Absent
                   </Button>
                 </div>
@@ -195,7 +241,7 @@ const TeacherAttendance = () => {
               <CardContent className="pt-6">
                 <div className="text-center">
                   <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-primary-light flex items-center justify-center">
-                    <Users className="w-7 h-7 text-primary" />
+                    <FontAwesomeIcon icon={faUsers} className="w-7 h-7 text-primary" />
                   </div>
                   <p className="text-3xl font-bold mb-1">{students.length}</p>
                   <p className="text-sm font-medium text-muted-foreground">Total Students</p>
@@ -206,7 +252,7 @@ const TeacherAttendance = () => {
               <CardContent className="pt-6">
                 <div className="text-center">
                   <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-success-light flex items-center justify-center">
-                    <CheckCircle2 className="w-7 h-7 text-success" />
+                    <FontAwesomeIcon icon={faCheckCircle} className="w-7 h-7 text-success" />
                   </div>
                   <p className="text-3xl font-bold mb-1 text-success">{presentCount}</p>
                   <p className="text-sm font-medium text-muted-foreground">Present Today</p>
@@ -217,7 +263,7 @@ const TeacherAttendance = () => {
               <CardContent className="pt-6">
                 <div className="text-center">
                   <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-destructive-light flex items-center justify-center">
-                    <XCircle className="w-7 h-7 text-destructive" />
+                    <FontAwesomeIcon icon={faTimesCircle} className="w-7 h-7 text-destructive" />
                   </div>
                   <p className="text-3xl font-bold mb-1 text-destructive">{absentCount}</p>
                   <p className="text-sm font-medium text-muted-foreground">Absent Today</p>
@@ -228,7 +274,7 @@ const TeacherAttendance = () => {
               <CardContent className="pt-6">
                 <div className="text-center">
                   <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-white/20 flex items-center justify-center">
-                    <TrendingUp className="w-7 h-7 text-white" />
+                    <FontAwesomeIcon icon={faChartLine} className="w-7 h-7 text-white" />
                   </div>
                   <p className="text-3xl font-bold mb-1 text-white">
                     {totalMarked > 0 ? Math.round((presentCount / students.length) * 100) : 0}%
@@ -247,7 +293,7 @@ const TeacherAttendance = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-primary-light rounded-lg">
-                    <ClipboardCheck className="w-5 h-5 text-primary" />
+                    <FontAwesomeIcon icon={faClipboardCheck} className="w-5 h-5 text-primary" />
                   </div>
                   <div>
                     <CardTitle className="text-xl">Student Attendance</CardTitle>
@@ -261,31 +307,55 @@ const TeacherAttendance = () => {
             </CardHeader>
             <CardContent className="pt-6">
               <div className="space-y-3">
+                {loading ? (
+                  <div className="space-y-3">
+                    {[...Array(8)].map((_, i) => (
+                      <div key={i} className="flex items-center justify-between p-4 rounded-xl border-2 bg-card border-border">
+                        <div className="flex items-center gap-4">
+                          <Skeleton className="h-12 w-12 rounded-xl" />
+                          <div className="space-y-2">
+                            <Skeleton className="h-5 w-40" />
+                            <Skeleton className="h-4 w-64" />
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <Skeleton className="h-11 w-28 rounded-md" />
+                          <Skeleton className="h-11 w-28 rounded-md" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                <>
                 {students.map((student, index) => (
                   <div
                     key={student.id}
                     className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all duration-300 hover:shadow-md ${
-                      attendance[student.id] === 'present' 
-                        ? 'bg-success-light border-success/30' 
-                        : attendance[student.id] === 'absent' 
-                        ? 'bg-destructive-light border-destructive/30' 
+                      attendance[student.id] === 'present'
+                        ? 'bg-success-light border-success/30'
+                        : attendance[student.id] === 'absent'
+                        ? 'bg-destructive-light border-destructive/30'
                         : 'bg-card border-border hover:border-primary/30'
                     }`}
                     style={{ animationDelay: `${index * 30}ms` }}
                   >
                     <div className="flex items-center gap-4">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-sm ${
-                        attendance[student.id] === 'present'
-                          ? 'bg-success text-white'
-                          : attendance[student.id] === 'absent'
-                          ? 'bg-destructive text-white'
-                          : 'bg-primary-light text-primary'
-                      }`}>
+                      <div
+                        className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-sm ${
+                          attendance[student.id] === 'present'
+                            ? 'bg-success text-white'
+                            : attendance[student.id] === 'absent'
+                            ? 'bg-destructive text-white'
+                            : 'bg-primary-light text-primary'
+                        }`}
+                      >
                         {student.rollNo}
                       </div>
                       <div>
                         <p className="font-semibold text-base">{student.name}</p>
-                        <p className="text-sm text-muted-foreground">Roll No: {student.rollNo} • Class {student.class}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Roll No: {student.rollNo} • Class {student.class}
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -293,7 +363,7 @@ const TeacherAttendance = () => {
                         size="lg"
                         variant={attendance[student.id] === 'present' ? 'default' : 'outline'}
                         onClick={() => {
-                          setAttendance(prev => ({ ...prev, [student.id]: 'present' }));
+                          setAttendance((prev) => ({ ...prev, [student.id]: 'present' }));
                         }}
                         className={`min-w-[120px] font-semibold transition-all ${
                           attendance[student.id] === 'present'
@@ -301,7 +371,7 @@ const TeacherAttendance = () => {
                             : 'border-2 hover:border-success hover:bg-success-light hover:text-success'
                         }`}
                       >
-                        <CheckCircle2 className="w-5 h-5 mr-2" />
+                        <FontAwesomeIcon icon={faCheckCircle} className="w-5 h-5 mr-2" />
                         Present
                       </Button>
                       <Button
@@ -316,18 +386,20 @@ const TeacherAttendance = () => {
                             : 'border-2 hover:border-destructive hover:bg-destructive-light hover:text-destructive'
                         }`}
                       >
-                        <XCircle className="w-5 h-5 mr-2" />
+                        <FontAwesomeIcon icon={faTimesCircle} className="w-5 h-5 mr-2" />
                         Absent
                       </Button>
                     </div>
                   </div>
                 ))}
+                </>
+                )}
               </div>
 
               <div className="mt-8 flex items-center justify-between p-6 bg-primary-light rounded-xl border-2 border-primary/20">
                 <div className="flex items-center gap-4">
                   <div className="p-3 bg-white rounded-lg">
-                    <Shield className="w-6 h-6 text-primary" />
+                    <FontAwesomeIcon icon={faShield} className="w-6 h-6 text-primary" />
                   </div>
                   <div>
                     <p className="font-semibold text-foreground">Ready to save attendance?</p>
@@ -340,7 +412,7 @@ const TeacherAttendance = () => {
                   disabled={totalMarked === 0}
                   className="min-w-[180px] h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all"
                 >
-                  <ClipboardCheck className="w-5 h-5 mr-2" />
+                  <FontAwesomeIcon icon={faClipboardCheck} className="w-5 h-5 mr-2" />
                   Save Attendance
                 </Button>
               </div>
@@ -352,7 +424,7 @@ const TeacherAttendance = () => {
           <Card className="animate-fade-in shadow-xl border-2">
             <CardContent className="py-16 text-center">
               <div className="w-24 h-24 mx-auto mb-6 rounded-2xl bg-primary-light flex items-center justify-center">
-                <ClipboardCheck className="w-12 h-12 text-primary" />
+                <FontAwesomeIcon icon={faClipboardCheck} className="w-12 h-12 text-primary" />
               </div>
               <h3 className="text-2xl font-bold mb-2">Select a Class to Begin</h3>
               <p className="text-lg text-muted-foreground max-w-md mx-auto">

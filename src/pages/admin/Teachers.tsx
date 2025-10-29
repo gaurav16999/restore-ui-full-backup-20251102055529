@@ -3,8 +3,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BookOpen, Plus, Search, Edit, Trash2, Eye, EyeOff, Users, BarChart3, Calendar, DollarSign, UserCog, ClipboardList, FileText, Settings } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { 
+  faChalkboardTeacher, 
+  faPlus, 
+  faSearch, 
+  faEdit, 
+  faTrash, 
+  faEye, 
+  faEyeSlash, 
+  faUsers, 
+  faChartBar, 
+  faCalendarAlt, 
+  faDollarSign, 
+  faUserCog, 
+  faClipboardList, 
+  faFileText, 
+  faCog,
+  faTrophy
+} from "@fortawesome/free-solid-svg-icons";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { getAdminSidebarItems } from "@/lib/adminSidebar";
 import {
   Table,
   TableBody,
@@ -23,7 +42,7 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { getTeachers, getTeacherStats, createTeacher, updateTeacher, deleteTeacher } from "@/lib/api";
+import { getTeachers, getTeacherStats, createTeacher, updateTeacher, deleteTeacher, toggleTeacherStatus } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -41,6 +60,7 @@ const AdminTeachers = () => {
   const [teachers, setTeachers] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string>("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingTeacherId, setEditingTeacherId] = useState<number | null>(null);
@@ -50,7 +70,6 @@ const AdminTeachers = () => {
   const { toast } = useToast();
   
   const [formData, setFormData] = useState({
-    username: '',
     email: '',
     first_name: '',
     last_name: '',
@@ -61,22 +80,48 @@ const AdminTeachers = () => {
 
   const fetchData = async () => {
     try {
+      setError("");
       const token = localStorage.getItem('accessToken');
-      if (!token) return;
+      console.log('Teachers page - token:', token ? 'exists' : 'missing');
+      if (!token) {
+        setError("No authentication token found. Please log in.");
+        setLoading(false);
+        return;
+      }
 
       const [teachersData, statsData] = await Promise.all([
-        getTeachers(token),
-        getTeacherStats(token)
+        getTeachers(),
+        getTeacherStats()
       ]);
 
-      setTeachers(teachersData);
-      setStats(statsData);
-    } catch (error) {
+      console.log('Teachers data received:', teachersData);
+      console.log('Teachers stats received:', statsData);
+
+      // Handle paginated responses
+      const teachersArray = Array.isArray(teachersData) ? teachersData : (teachersData?.results || []);
+
+      setTeachers(teachersArray);
+      setStats(statsData || {
+        total: 0,
+        active: 0,
+        new_this_month: 0,
+        avg_performance: '0%'
+      });
+    } catch (error: any) {
       console.error('Failed to fetch teachers:', error);
+      setError(error.message || "Failed to fetch teachers data");
       toast({
         title: "Error",
         description: "Failed to fetch teachers data",
         variant: "destructive",
+      });
+      // Set empty arrays on error
+      setTeachers([]);
+      setStats({
+        total: 0,
+        active: 0,
+        new_this_month: 0,
+        avg_performance: '0%'
       });
     } finally {
       setLoading(false);
@@ -119,7 +164,6 @@ const AdminTeachers = () => {
       setIsEditMode(false);
       setEditingTeacherId(null);
       setFormData({
-        username: '',
         email: '',
         first_name: '',
         last_name: '',
@@ -151,7 +195,6 @@ const AdminTeachers = () => {
     setIsEditMode(true);
     setEditingTeacherId(teacher.id);
     setFormData({
-      username: teacher.user_username || '',
       email: teacher.email || '',
       first_name: teacher.name.split(' ')[0] || '',
       last_name: teacher.name.split(' ').slice(1).join(' ') || '',
@@ -194,11 +237,40 @@ const AdminTeachers = () => {
     setDeleteDialogOpen(true);
   };
 
+  const handleStatusToggle = async (teacherId: number) => {
+    try {
+      const accessToken = localStorage.getItem('accessToken');
+      if (!accessToken) {
+        toast({
+          title: "Error",
+          description: "You must be logged in to update teacher status",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      await toggleTeacherStatus(accessToken, teacherId);
+      
+      // Refresh the teachers list
+      await fetchData();
+      
+      toast({
+        title: "Success",
+        description: "Teacher status updated successfully",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update teacher status",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleAddNew = () => {
     setIsEditMode(false);
     setEditingTeacherId(null);
     setFormData({
-      username: '',
       email: '',
       first_name: '',
       last_name: '',
@@ -209,19 +281,9 @@ const AdminTeachers = () => {
     setIsDialogOpen(true);
   };
 
-  const sidebarItems = [
-    { icon: BarChart3, label: "Dashboard", path: "/admin" },
-    { icon: Users, label: "Students", path: "/admin/students" },
-    { icon: BookOpen, label: "Teachers", active: true, path: "/admin/teachers" },
-    { icon: Calendar, label: "Classes & Subjects", path: "/admin/classes" },
-    { icon: ClipboardList, label: "Attendance", path: "/admin/attendance" },
-    { icon: FileText, label: "Grades & Reports" },
-    { icon: DollarSign, label: "Fee Management" },
-    { icon: UserCog, label: "User Management" },
-    { icon: Settings, label: "Settings" },
-  ];
+  const sidebarItems = getAdminSidebarItems("/admin/teachers");
 
-  const filteredTeachers = teachers.filter(teacher =>
+  const filteredTeachers = (Array.isArray(teachers) ? teachers : []).filter(teacher =>
     teacher.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     teacher.subject.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -243,7 +305,7 @@ const AdminTeachers = () => {
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button size="lg" className="shadow-lg hover:shadow-xl transition-all h-12" onClick={handleAddNew}>
-                <Plus className="w-5 h-5 mr-2" />
+                <FontAwesomeIcon icon={faPlus} className="w-5 h-5 mr-2" />
                 Add New Teacher
               </Button>
             </DialogTrigger>
@@ -278,28 +340,16 @@ const AdminTeachers = () => {
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="username">Username *</Label>
-                      <Input
-                        id="username"
-                        name="username"
-                        value={formData.username}
-                        onChange={handleInputChange}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email *</Label>
-                      <Input
-                        id="email"
-                        name="email"
-                        type="email"
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        required
-                      />
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email *</Label>
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      required
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="subject">Subject *</Label>
@@ -363,7 +413,7 @@ const AdminTeachers = () => {
                       <p className="text-3xl font-bold">{stats.total}</p>
                     </div>
                     <div className="p-3 bg-primary-light rounded-xl">
-                      <BookOpen className="w-8 h-8 text-primary" />
+                      <FontAwesomeIcon icon={faChalkboardTeacher} className="w-8 h-8 text-primary" />
                     </div>
                   </div>
                 </CardContent>
@@ -376,7 +426,7 @@ const AdminTeachers = () => {
                       <p className="text-3xl font-bold text-success">{stats.active}</p>
                     </div>
                     <div className="p-3 bg-success-light rounded-xl">
-                      <BookOpen className="w-8 h-8 text-success" />
+                      <FontAwesomeIcon icon={faChalkboardTeacher} className="w-8 h-8 text-success" />
                     </div>
                   </div>
                 </CardContent>
@@ -389,7 +439,7 @@ const AdminTeachers = () => {
                       <p className="text-3xl font-bold text-accent">{stats.total_classes}</p>
                     </div>
                     <div className="p-3 bg-accent-light rounded-xl">
-                      <Calendar className="w-8 h-8 text-accent" />
+                      <FontAwesomeIcon icon={faCalendarAlt} className="w-8 h-8 text-accent" />
                     </div>
                   </div>
                 </CardContent>
@@ -402,7 +452,7 @@ const AdminTeachers = () => {
                       <p className="text-3xl font-bold text-primary">{stats.teacher_student_ratio}</p>
                     </div>
                     <div className="p-3 bg-primary-light rounded-xl">
-                      <Users className="w-8 h-8 text-primary" />
+                      <FontAwesomeIcon icon={faUsers} className="w-8 h-8 text-primary" />
                     </div>
                   </div>
                 </CardContent>
@@ -416,7 +466,7 @@ const AdminTeachers = () => {
           <CardHeader className="bg-gradient-card border-b">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-primary-light rounded-lg">
-                <BookOpen className="w-5 h-5 text-primary" />
+                <FontAwesomeIcon icon={faChalkboardTeacher} className="w-5 h-5 text-primary" />
               </div>
               <div>
                 <CardTitle className="text-xl">Teaching Staff Directory</CardTitle>
@@ -427,7 +477,7 @@ const AdminTeachers = () => {
           <CardContent className="pt-6">
             <div className="flex items-center gap-4 mb-6">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
+                <FontAwesomeIcon icon={faSearch} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
                 <Input
                   placeholder="Search by name or subject..."
                   value={searchQuery}
@@ -444,6 +494,7 @@ const AdminTeachers = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Teacher Name</TableHead>
+                    <TableHead>Username</TableHead>
                     <TableHead>Subject</TableHead>
                     <TableHead>Classes</TableHead>
                     <TableHead>Students</TableHead>
@@ -455,11 +506,11 @@ const AdminTeachers = () => {
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-10">Loading teachers...</TableCell>
+                      <TableCell colSpan={8} className="text-center py-10">Loading teachers...</TableCell>
                     </TableRow>
                   ) : filteredTeachers.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-10">No teachers found</TableCell>
+                      <TableCell colSpan={8} className="text-center py-10">No teachers found</TableCell>
                     </TableRow>
                   ) : (
                     filteredTeachers.map((teacher) => (
@@ -470,12 +521,18 @@ const AdminTeachers = () => {
                             <p className="text-sm text-muted-foreground">{teacher.email}</p>
                           </div>
                         </TableCell>
+                        <TableCell className="font-mono text-sm">{teacher.user_username}</TableCell>
                         <TableCell>{teacher.subject}</TableCell>
                         <TableCell>{teacher.classes_count} classes</TableCell>
                         <TableCell>{teacher.students_count} students</TableCell>
                         <TableCell className="text-sm">{teacher.phone}</TableCell>
                         <TableCell>
-                          <Badge variant={teacher.status === "Active" ? "default" : "secondary"}>
+                          <Badge 
+                            variant={teacher.status === "Active" ? "default" : "secondary"}
+                            className="cursor-pointer hover:opacity-80 hover:scale-105 transition-all duration-200 select-none"
+                            onClick={() => handleStatusToggle(teacher.id)}
+                            title="Click to toggle status"
+                          >
                             {teacher.status}
                           </Badge>
                         </TableCell>
@@ -483,16 +540,16 @@ const AdminTeachers = () => {
                           <div className="flex justify-end gap-2">
                             <Button variant="ghost" size="icon" title={teacher.status === "Active" ? "Active" : "Inactive"}>
                               {teacher.status === "Active" ? (
-                                <Eye className="w-4 h-4 text-green-600" />
+                                <FontAwesomeIcon icon={faEye} className="w-4 h-4 text-green-600" />
                               ) : (
-                                <EyeOff className="w-4 h-4 text-gray-400" />
+                                <FontAwesomeIcon icon={faEyeSlash} className="w-4 h-4 text-gray-400" />
                               )}
                             </Button>
                             <Button variant="ghost" size="icon" onClick={() => handleEdit(teacher)} title="Edit Teacher">
-                              <Edit className="w-4 h-4" />
+                              <FontAwesomeIcon icon={faEdit} className="w-4 h-4" />
                             </Button>
                             <Button variant="ghost" size="icon" onClick={() => openDeleteDialog(teacher.id)} title="Delete Teacher">
-                              <Trash2 className="w-4 h-4 text-destructive" />
+                              <FontAwesomeIcon icon={faTrash} className="w-4 h-4 text-destructive" />
                             </Button>
                           </div>
                         </TableCell>
