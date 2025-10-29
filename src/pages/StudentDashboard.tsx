@@ -1,12 +1,12 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { faChartBar, faUsers, faCalendar, faClipboardCheck, faArrowTrendUp, faAward, faFileText, faComments, faCog, faUser, faShield, faExclamationCircle, faBook } from "@fortawesome/free-solid-svg-icons";
+import { faChartBar, faUsers, faCalendar, faClipboardCheck, faArrowTrendUp, faAward, faFileText, faComments, faCog, faUser, faShield, faExclamationCircle, faBook, faClipboard, faArrowRight, faDollarSign } from "@fortawesome/free-solid-svg-icons";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Progress } from "@/components/ui/progress";
 import { useQuery } from "@tanstack/react-query";
 import { getStudentDashboard } from "@/lib/api";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { getStudentSidebarItems } from "@/lib/studentSidebar";
-import { useLocation } from "react-router-dom";
+import { useLocation, Link } from "react-router-dom";
 import NotificationTester from "@/components/NotificationTester";
 
 type StudentDashboardData = {
@@ -154,6 +154,104 @@ const StudentDashboard = () => {
             );
           })}
         </div>
+
+        {/* Quick Actions for Students */}
+        <Card className="animate-fade-in shadow-xl border-2" style={{ animationDelay: "175ms" }}>
+          <CardHeader className="bg-gradient-card border-b">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <FontAwesomeIcon icon={faChartBar} className="w-5 h-5 text-purple-600" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <CardTitle className="text-lg md:text-xl">Quick Actions</CardTitle>
+                <CardDescription>Access your study tools</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              <Link to="/student/assignments" className="group">
+                <div className="p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl border-2 border-orange-200 hover:border-orange-400 transition-all hover:shadow-lg cursor-pointer">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-orange-500 rounded-lg">
+                      <FontAwesomeIcon icon={faClipboard} className="w-4 h-4 text-white" />
+                    </div>
+                    <h3 className="font-semibold text-orange-900">Assignments</h3>
+                  </div>
+                  <p className="text-xs text-orange-700 mb-2">View & submit work</p>
+                  <div className="flex items-center gap-1 text-orange-600 text-xs font-medium group-hover:gap-2 transition-all">
+                    <span>View Assignments</span>
+                    <FontAwesomeIcon icon={faArrowRight} className="w-3 h-3" />
+                  </div>
+                </div>
+              </Link>
+
+              <Link to="/student/grades" className="group">
+                <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border-2 border-blue-200 hover:border-blue-400 transition-all hover:shadow-lg cursor-pointer">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-blue-500 rounded-lg">
+                      <FontAwesomeIcon icon={faArrowTrendUp} className="w-4 h-4 text-white" />
+                    </div>
+                    <h3 className="font-semibold text-blue-900">Grades</h3>
+                  </div>
+                  <p className="text-xs text-blue-700 mb-2">Check your results</p>
+                  <div className="flex items-center gap-1 text-blue-600 text-xs font-medium group-hover:gap-2 transition-all">
+                    <span>View Grades</span>
+                    <FontAwesomeIcon icon={faArrowRight} className="w-3 h-3" />
+                  </div>
+                </div>
+              </Link>
+
+              <Link to="/student/schedule" className="group">
+                <div className="p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border-2 border-green-200 hover:border-green-400 transition-all hover:shadow-lg cursor-pointer">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-green-500 rounded-lg">
+                      <FontAwesomeIcon icon={faCalendar} className="w-4 h-4 text-white" />
+                    </div>
+                    <h3 className="font-semibold text-green-900">Schedule</h3>
+                  </div>
+                  <p className="text-xs text-green-700 mb-2">View your timetable</p>
+                  <div className="flex items-center gap-1 text-green-600 text-xs font-medium group-hover:gap-2 transition-all">
+                    <span>View Schedule</span>
+                    <FontAwesomeIcon icon={faArrowRight} className="w-3 h-3" />
+                  </div>
+                </div>
+              </Link>
+
+              <Link to="/student/attendance" className="group">
+                <div className="p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border-2 border-purple-200 hover:border-purple-400 transition-all hover:shadow-lg cursor-pointer">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-purple-500 rounded-lg">
+                      <FontAwesomeIcon icon={faClipboardCheck} className="w-4 h-4 text-white" />
+                    </div>
+                    <h3 className="font-semibold text-purple-900">Attendance</h3>
+                  </div>
+                  <p className="text-xs text-purple-700 mb-2">Track your attendance</p>
+                  <div className="flex items-center gap-1 text-purple-600 text-xs font-medium group-hover:gap-2 transition-all">
+                    <span>View Attendance</span>
+                    <FontAwesomeIcon icon={faArrowRight} className="w-3 h-3" />
+                  </div>
+                </div>
+              </Link>
+
+              <Link to="/student/fees" className="group">
+                <div className="p-4 bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl border-2 border-yellow-200 hover:border-yellow-400 transition-all hover:shadow-lg cursor-pointer">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-yellow-500 rounded-lg">
+                      <FontAwesomeIcon icon={faDollarSign} className="w-4 h-4 text-white" />
+                    </div>
+                    <h3 className="font-semibold text-yellow-900">Fees</h3>
+                  </div>
+                  <p className="text-xs text-yellow-700 mb-2">Check payment status</p>
+                  <div className="flex items-center gap-1 text-yellow-600 text-xs font-medium group-hover:gap-2 transition-all">
+                    <span>View Fees</span>
+                    <FontAwesomeIcon icon={faArrowRight} className="w-3 h-3" />
+                  </div>
+                </div>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
           {/* Upcoming Assignments */}

@@ -1,6 +1,9 @@
 import { API_BASE } from './config';
 import authClient from './http';
 
+// Re-export authClient for use in other modules
+export { authClient };
+
 // Enhanced fetch with timeout and better error handling
 async function apiRequest(url: string, options: RequestInit = {}) {
   const controller = new AbortController();

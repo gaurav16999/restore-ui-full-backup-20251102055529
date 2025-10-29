@@ -11,7 +11,11 @@ import {
   faCog,
   faDoorOpen,
   faUserTie,
-  faBook
+  faBook,
+  faClock,
+  faClipboard,
+  faBullhorn,
+  faGraduationCap
 } from '@fortawesome/free-solid-svg-icons';
 
 export const getAdminSidebarItems = (currentPath: string) => [
@@ -68,6 +72,30 @@ export const getAdminSidebarItems = (currentPath: string) => [
     label: "Grades", 
     path: "/admin/grades",
     active: currentPath === "/admin/grades"
+  },
+  { 
+    icon: faGraduationCap, 
+    label: "Exams",
+    path: "/admin/exams",
+    active: currentPath === "/admin/exams"
+  },
+  { 
+    icon: faClock, 
+    label: "Timetable",
+    path: "/admin/timetable",
+    active: currentPath === "/admin/timetable"
+  },
+  { 
+    icon: faClipboard, 
+    label: "Assignments",
+    path: "/admin/assignments",
+    active: currentPath === "/admin/assignments"
+  },
+  { 
+    icon: faBullhorn, 
+    label: "Communications",
+    path: "/admin/communications",
+    active: currentPath === "/admin/communications"
   },
   { 
     icon: faFileText, 

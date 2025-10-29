@@ -389,3 +389,376 @@ class Notification(models.Model):
         
     def __str__(self):
         return f"{self.user.username} - {self.title}"
+
+
+# ==================== FEE MANAGEMENT ====================
+
+class FeeStructure(models.Model):
+    """Defines fee types and amounts for different classes/categories"""
+    FEE_TYPES = [
+        ('tuition', 'Tuition Fee'),
+        ('admission', 'Admission Fee'),
+        ('exam', 'Examination Fee'),
+        ('library', 'Library Fee'),
+        ('lab', 'Laboratory Fee'),
+        ('sports', 'Sports Fee'),
+        ('transport', 'Transport Fee'),
+        ('hostel', 'Hostel Fee'),
+        ('computer', 'Computer Fee'),
+        ('development', 'Development Fee'),
+        ('other', 'Other'),
+    ]
+    
+    FREQUENCY = [
+        ('onetime', 'One Time'),
+        ('monthly', 'Monthly'),
+        ('quarterly', 'Quarterly'),
+        ('half_yearly', 'Half Yearly'),
+        ('yearly', 'Yearly'),
+    ]
+    
+    name = models.CharField(max_length=100)
+    fee_type = models.CharField(max_length=20, choices=FEE_TYPES)
+    amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
+    frequency = models.CharField(max_length=20, choices=FREQUENCY, default='yearly')
+    class_assigned = models.ForeignKey(Class, on_delete=models.CASCADE, null=True, blank=True, related_name='fee_structures')
+    grade_level = models.CharField(max_length=20, blank=True, help_text="Applicable for specific grade level")
+    is_mandatory = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True)
+    due_date = models.DateField(null=True, blank=True)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['name']
+        verbose_name_plural = "Fee Structures"
+    
+    def __str__(self):
+        return f"{self.name} - {self.get_fee_type_display()} - {self.amount}"
+
+
+class FeePayment(models.Model):
+    """Records individual fee payments"""
+    PAYMENT_METHODS = [
+        ('cash', 'Cash'),
+        ('bank_transfer', 'Bank Transfer'),
+        ('cheque', 'Cheque'),
+        ('online', 'Online Payment'),
+        ('upi', 'UPI'),
+        ('card', 'Credit/Debit Card'),
+    ]
+    
+    PAYMENT_STATUS = [
+        ('pending', 'Pending'),
+        ('paid', 'Paid'),
+        ('partial', 'Partially Paid'),
+        ('overdue', 'Overdue'),
+        ('cancelled', 'Cancelled'),
+    ]
+    
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='fee_payments')
+    fee_structure = models.ForeignKey(FeeStructure, on_delete=models.CASCADE, related_name='payments')
+    invoice_number = models.CharField(max_length=50, unique=True)
+    amount_due = models.DecimalField(max_digits=10, decimal_places=2)
+    amount_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHODS, null=True, blank=True)
+    transaction_id = models.CharField(max_length=100, blank=True)
+    status = models.CharField(max_length=20, choices=PAYMENT_STATUS, default='pending')
+    payment_date = models.DateField(null=True, blank=True)
+    due_date = models.DateField()
+    late_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    remarks = models.TextField(blank=True)
+    collected_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='collected_payments')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    @property
+    def balance(self):
+        return self.amount_due - self.amount_paid
+    
+    @property
+    def is_overdue(self):
+        if self.status != 'paid' and self.due_date:
+            return timezone.now().date() > self.due_date
+        return False
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.invoice_number} - {self.student.get_full_name()} - {self.status}"
+
+
+# ==================== EXAM MANAGEMENT ====================
+
+class Exam(models.Model):
+    """Defines examination details"""
+    EXAM_TYPES = [
+        ('unit_test', 'Unit Test'),
+        ('monthly', 'Monthly Test'),
+        ('quarterly', 'Quarterly Exam'),
+        ('half_yearly', 'Half Yearly'),
+        ('annual', 'Annual Exam'),
+        ('board', 'Board Exam'),
+    ]
+    
+    name = models.CharField(max_length=200)
+    exam_type = models.CharField(max_length=20, choices=EXAM_TYPES)
+    academic_year = models.CharField(max_length=20)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    class_assigned = models.ForeignKey(Class, on_delete=models.CASCADE, related_name='exams')
+    total_marks = models.IntegerField(default=100)
+    passing_marks = models.IntegerField(default=40)
+    instructions = models.TextField(blank=True)
+    is_published = models.BooleanField(default=False)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_exams')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-start_date']
+    
+    def __str__(self):
+        return f"{self.name} - {self.class_assigned.name}"
+
+
+class ExamSchedule(models.Model):
+    """Individual exam paper schedule"""
+    exam = models.ForeignKey(Exam, on_delete=models.CASCADE, related_name='schedules')
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='exam_schedules')
+    date = models.DateField()
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True, related_name='exam_schedules')
+    invigilator = models.ForeignKey(Teacher, on_delete=models.SET_NULL, null=True, blank=True, related_name='invigilation_duties')
+    max_marks = models.IntegerField(default=100)
+    duration_minutes = models.IntegerField(help_text="Exam duration in minutes")
+    instructions = models.TextField(blank=True)
+    
+    class Meta:
+        ordering = ['date', 'start_time']
+        unique_together = ['exam', 'subject']
+    
+    def __str__(self):
+        return f"{self.exam.name} - {self.subject.title} - {self.date}"
+
+
+class ExamResult(models.Model):
+    """Student exam results"""
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='exam_results')
+    exam = models.ForeignKey(Exam, on_delete=models.CASCADE, related_name='results')
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='exam_results')
+    marks_obtained = models.DecimalField(max_digits=6, decimal_places=2)
+    max_marks = models.DecimalField(max_digits=6, decimal_places=2)
+    grade = models.CharField(max_length=5, blank=True)
+    remarks = models.TextField(blank=True)
+    is_absent = models.BooleanField(default=False)
+    entered_by = models.ForeignKey(Teacher, on_delete=models.SET_NULL, null=True, blank=True, related_name='entered_results')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    @property
+    def percentage(self):
+        if self.is_absent:
+            return 0
+        return round((self.marks_obtained / self.max_marks) * 100, 2)
+    
+    @property
+    def passed(self):
+        return self.marks_obtained >= self.exam.passing_marks
+    
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = ['student', 'exam', 'subject']
+    
+    def __str__(self):
+        return f"{self.student.get_full_name()} - {self.exam.name} - {self.subject.title}"
+
+
+# ==================== TIMETABLE MANAGEMENT ====================
+
+class TimeSlot(models.Model):
+    """Defines time periods for the school day"""
+    DAYS_OF_WEEK = [
+        ('monday', 'Monday'),
+        ('tuesday', 'Tuesday'),
+        ('wednesday', 'Wednesday'),
+        ('thursday', 'Thursday'),
+        ('friday', 'Friday'),
+        ('saturday', 'Saturday'),
+        ('sunday', 'Sunday'),
+    ]
+    
+    name = models.CharField(max_length=50, help_text="e.g., Period 1, Break, Lunch")
+    day_of_week = models.CharField(max_length=20, choices=DAYS_OF_WEEK)
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    is_break = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['day_of_week', 'start_time']
+    
+    def __str__(self):
+        return f"{self.get_day_of_week_display()} - {self.name} ({self.start_time} - {self.end_time})"
+
+
+class Timetable(models.Model):
+    """Class timetable entries"""
+    class_assigned = models.ForeignKey(Class, on_delete=models.CASCADE, related_name='timetables')
+    time_slot = models.ForeignKey(TimeSlot, on_delete=models.CASCADE, related_name='timetables')
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='timetables')
+    teacher = models.ForeignKey(Teacher, on_delete=models.SET_NULL, null=True, blank=True, related_name='timetables')
+    room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True, related_name='timetables')
+    academic_year = models.CharField(max_length=20)
+    effective_from = models.DateField()
+    effective_to = models.DateField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['class_assigned', 'time_slot']
+        unique_together = ['class_assigned', 'time_slot', 'academic_year']
+    
+    def __str__(self):
+        return f"{self.class_assigned.name} - {self.time_slot.name} - {self.subject.title}"
+
+
+# ==================== ASSIGNMENT & HOMEWORK ====================
+
+class Assignment(models.Model):
+    """Homework and assignments"""
+    ASSIGNMENT_TYPES = [
+        ('homework', 'Homework'),
+        ('project', 'Project'),
+        ('presentation', 'Presentation'),
+        ('practical', 'Practical Work'),
+        ('essay', 'Essay'),
+        ('research', 'Research'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('published', 'Published'),
+        ('closed', 'Closed'),
+    ]
+    
+    title = models.CharField(max_length=200)
+    description = models.TextField()
+    assignment_type = models.CharField(max_length=20, choices=ASSIGNMENT_TYPES, default='homework')
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='assignments')
+    class_assigned = models.ForeignKey(Class, on_delete=models.CASCADE, related_name='assignments')
+    teacher = models.ForeignKey(Teacher, on_delete=models.CASCADE, related_name='created_assignments')
+    assigned_date = models.DateField(auto_now_add=True)
+    due_date = models.DateField()
+    max_marks = models.IntegerField(default=10)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='published')
+    attachment_url = models.CharField(max_length=500, blank=True)
+    instructions = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-due_date']
+    
+    def __str__(self):
+        return f"{self.title} - {self.subject.title} - {self.class_assigned.name}"
+
+
+class AssignmentSubmission(models.Model):
+    """Student assignment submissions"""
+    SUBMISSION_STATUS = [
+        ('pending', 'Pending'),
+        ('submitted', 'Submitted'),
+        ('late', 'Late Submission'),
+        ('graded', 'Graded'),
+    ]
+    
+    assignment = models.ForeignKey(Assignment, on_delete=models.CASCADE, related_name='submissions')
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='assignment_submissions')
+    submission_date = models.DateTimeField(auto_now_add=True)
+    submission_text = models.TextField(blank=True)
+    attachment_url = models.CharField(max_length=500, blank=True)
+    status = models.CharField(max_length=20, choices=SUBMISSION_STATUS, default='pending')
+    marks_obtained = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    feedback = models.TextField(blank=True)
+    graded_by = models.ForeignKey(Teacher, on_delete=models.SET_NULL, null=True, blank=True, related_name='graded_submissions')
+    graded_at = models.DateTimeField(null=True, blank=True)
+    
+    @property
+    def is_late(self):
+        return self.submission_date.date() > self.assignment.due_date
+    
+    class Meta:
+        ordering = ['-submission_date']
+        unique_together = ['assignment', 'student']
+    
+    def __str__(self):
+        return f"{self.assignment.title} - {self.student.get_full_name()}"
+
+
+# ==================== COMMUNICATION SYSTEM ====================
+
+class Announcement(models.Model):
+    """School announcements and circulars"""
+    ANNOUNCEMENT_TYPES = [
+        ('general', 'General'),
+        ('urgent', 'Urgent'),
+        ('event', 'Event'),
+        ('holiday', 'Holiday'),
+        ('exam', 'Exam Related'),
+        ('fee', 'Fee Related'),
+    ]
+    
+    TARGET_AUDIENCE = [
+        ('all', 'All'),
+        ('students', 'Students'),
+        ('teachers', 'Teachers'),
+        ('parents', 'Parents'),
+        ('staff', 'Staff'),
+        ('class_specific', 'Specific Class'),
+    ]
+    
+    title = models.CharField(max_length=200)
+    content = models.TextField()
+    announcement_type = models.CharField(max_length=20, choices=ANNOUNCEMENT_TYPES, default='general')
+    target_audience = models.CharField(max_length=20, choices=TARGET_AUDIENCE, default='all')
+    target_class = models.ForeignKey(Class, on_delete=models.SET_NULL, null=True, blank=True, related_name='announcements')
+    priority = models.CharField(max_length=20, choices=Notification.PRIORITY_LEVELS, default='medium')
+    attachment_url = models.CharField(max_length=500, blank=True)
+    is_published = models.BooleanField(default=False)
+    publish_date = models.DateTimeField(null=True, blank=True)
+    expiry_date = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_announcements')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.title} - {self.get_announcement_type_display()}"
+
+
+class Message(models.Model):
+    """Internal messaging system"""
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
+    receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_messages')
+    subject = models.CharField(max_length=200)
+    body = models.TextField()
+    is_read = models.BooleanField(default=False)
+    read_at = models.DateTimeField(null=True, blank=True)
+    parent_message = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='replies')
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.sender.username} to {self.receiver.username} - {self.subject}"

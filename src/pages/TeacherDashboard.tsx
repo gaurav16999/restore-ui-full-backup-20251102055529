@@ -1,5 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { faChartBar, faUsers, faCalendar, faClipboardCheck, faComments, faFileText, faChartLine, faCog, faUpload, faAward, faShield, faArrowTrendUp, faBook } from "@fortawesome/free-solid-svg-icons";
+import { faChartBar, faUsers, faCalendar, faClipboardCheck, faComments, faFileText, faChartLine, faCog, faUpload, faAward, faShield, faArrowTrendUp, faBook, faClipboard, faClock, faArrowRight } from "@fortawesome/free-solid-svg-icons";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useQuery } from "@tanstack/react-query";
 import { getTeacherDashboard } from "@/lib/api";
@@ -7,6 +7,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { getTeacherSidebarItems } from "@/lib/teacherSidebar";
 import { useAuth } from "@/lib/auth";
 import { useErrorHandler, teacherFallbackData } from "@/hooks/use-error-handler";
+import { Link } from "react-router-dom";
 
 type Stat = { title: string; value: string; color?: string };
 type TodayClass = { subject: string; class: string; time: string; room: string; students: number };
@@ -168,6 +169,72 @@ const TeacherDashboard = () => {
             );
           })}
         </div>
+
+        {/* Quick Actions for Teachers */}
+        <Card className="animate-fade-in shadow-xl border-2" style={{ animationDelay: "175ms" }}>
+          <CardHeader className="bg-gradient-card border-b">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <FontAwesomeIcon icon={faChartBar} className="w-5 h-5 text-purple-600" />
+              </div>
+              <div>
+                <CardTitle className="text-xl">Quick Actions</CardTitle>
+                <CardDescription>Access your teaching tools</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <Link to="/teacher/assignments" className="group">
+                <div className="p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl border-2 border-orange-200 hover:border-orange-400 transition-all hover:shadow-lg cursor-pointer">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-orange-500 rounded-lg">
+                      <FontAwesomeIcon icon={faClipboard} className="w-4 h-4 text-white" />
+                    </div>
+                    <h3 className="font-semibold text-orange-900">Assignments</h3>
+                  </div>
+                  <p className="text-xs text-orange-700 mb-2">Create & grade homework</p>
+                  <div className="flex items-center gap-1 text-orange-600 text-xs font-medium group-hover:gap-2 transition-all">
+                    <span>Manage Assignments</span>
+                    <FontAwesomeIcon icon={faArrowRight} className="w-3 h-3" />
+                  </div>
+                </div>
+              </Link>
+
+              <Link to="/teacher/attendance" className="group">
+                <div className="p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border-2 border-green-200 hover:border-green-400 transition-all hover:shadow-lg cursor-pointer">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-green-500 rounded-lg">
+                      <FontAwesomeIcon icon={faClipboardCheck} className="w-4 h-4 text-white" />
+                    </div>
+                    <h3 className="font-semibold text-green-900">Attendance</h3>
+                  </div>
+                  <p className="text-xs text-green-700 mb-2">Mark student attendance</p>
+                  <div className="flex items-center gap-1 text-green-600 text-xs font-medium group-hover:gap-2 transition-all">
+                    <span>Take Attendance</span>
+                    <FontAwesomeIcon icon={faArrowRight} className="w-3 h-3" />
+                  </div>
+                </div>
+              </Link>
+
+              <Link to="/teacher/grades" className="group">
+                <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border-2 border-blue-200 hover:border-blue-400 transition-all hover:shadow-lg cursor-pointer">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-blue-500 rounded-lg">
+                      <FontAwesomeIcon icon={faAward} className="w-4 h-4 text-white" />
+                    </div>
+                    <h3 className="font-semibold text-blue-900">Grades</h3>
+                  </div>
+                  <p className="text-xs text-blue-700 mb-2">Enter student grades</p>
+                  <div className="flex items-center gap-1 text-blue-600 text-xs font-medium group-hover:gap-2 transition-all">
+                    <span>Grade Students</span>
+                    <FontAwesomeIcon icon={faArrowRight} className="w-3 h-3" />
+                  </div>
+                </div>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Today's Schedule */}

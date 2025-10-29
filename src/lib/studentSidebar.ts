@@ -7,7 +7,8 @@ import {
   faClipboardCheck, 
   faComments, 
   faAward, 
-  faCog 
+  faCog,
+  faDollarSign
 } from "@fortawesome/free-solid-svg-icons";
 
 export interface StudentSidebarItem {
@@ -25,6 +26,7 @@ export const getStudentSidebarItems = (currentPath: string): StudentSidebarItem[
     { icon: faCalendar, label: "Schedule", path: "/student/schedule" },
     { icon: faArrowTrendUp, label: "Grades", path: "/student/grades" },
     { icon: faClipboardCheck, label: "Attendance", path: "/student/attendance" },
+    { icon: faDollarSign, label: "Fees & Payments", path: "/student/fees" },
     { icon: faComments, label: "Messages", path: "/student/messages" },
     { icon: faAward, label: "Achievements", path: "/student/achievements" },
     { icon: faCog, label: "Settings", path: "/student/settings" },

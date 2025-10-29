@@ -30,6 +30,10 @@ import AdminAttendance from "./pages/admin/Attendance";
 import AdminFeeManagement from "./pages/admin/FeeManagement";
 import AdminUserManagement from "./pages/admin/UserManagement";
 import AdminSettings from "./pages/admin/Settings";
+import ExamManagement from "./pages/admin/ExamManagement";
+import TimetableManagement from "./pages/admin/TimetableManagement";
+import AssignmentManagement from "./pages/admin/AssignmentManagement";
+import Communications from "./pages/admin/Communications";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import TeacherAttendance from "./pages/teacher/Attendance";
 import TeacherClasses from "./pages/teacher/Classes";
@@ -48,6 +52,7 @@ import StudentAttendance from "./pages/student/Attendance";
 import StudentMessages from "./pages/student/Messages";
 import StudentAchievements from "./pages/student/Achievements";
 import StudentSettings from "./pages/student/Settings";
+import StudentFeeManagement from "./pages/student/FeeManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -84,6 +89,10 @@ const App = () => (
             <Route path="/admin/reports" element={<ProtectedRoute><AdminReports /></ProtectedRoute>} />
             <Route path="/admin/attendance" element={<ProtectedRoute><AdminAttendance /></ProtectedRoute>} />
             <Route path="/admin/fees" element={<ProtectedRoute><AdminFeeManagement /></ProtectedRoute>} />
+            <Route path="/admin/exams" element={<ProtectedRoute><ExamManagement /></ProtectedRoute>} />
+            <Route path="/admin/timetable" element={<ProtectedRoute><TimetableManagement /></ProtectedRoute>} />
+            <Route path="/admin/assignments" element={<ProtectedRoute><AssignmentManagement /></ProtectedRoute>} />
+            <Route path="/admin/communications" element={<ProtectedRoute><Communications /></ProtectedRoute>} />
             <Route path="/admin/users" element={<ProtectedRoute><AdminUserManagement /></ProtectedRoute>} />
             <Route path="/admin/settings" element={<ProtectedRoute><AdminSettings /></ProtectedRoute>} />
             <Route path="/teacher" element={<ProtectedRoute><TeacherDashboard /></ProtectedRoute>} />
@@ -101,6 +110,7 @@ const App = () => (
             <Route path="/student/schedule" element={<ProtectedRoute><StudentSchedule /></ProtectedRoute>} />
             <Route path="/student/grades" element={<ProtectedRoute><StudentGrades /></ProtectedRoute>} />
             <Route path="/student/attendance" element={<ProtectedRoute><StudentAttendance /></ProtectedRoute>} />
+            <Route path="/student/fees" element={<ProtectedRoute><StudentFeeManagement /></ProtectedRoute>} />
             <Route path="/student/messages" element={<ProtectedRoute><StudentMessages /></ProtectedRoute>} />
             <Route path="/student/achievements" element={<ProtectedRoute><StudentAchievements /></ProtectedRoute>} />
             <Route path="/student/settings" element={<ProtectedRoute><StudentSettings /></ProtectedRoute>} />

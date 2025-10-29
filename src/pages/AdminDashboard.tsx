@@ -15,8 +15,14 @@ import {
   faTrophy, 
   faUserCheck, 
   faUserTimes,
-  faUserSlash
+  faUserSlash,
+  faClock,
+  faClipboard,
+  faBullhorn,
+  faGraduationCap,
+  faArrowRight
 } from "@fortawesome/free-solid-svg-icons";
+import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { getDashboardStats, getRecentActivities, getUpcomingEvents, getStudentStats, getTeacherStats } from "@/lib/api";
 import { getAdminSidebarItems } from "@/lib/adminSidebar";
@@ -207,6 +213,88 @@ const AdminDashboard = () => {
               ))
           )}
         </div>
+
+        {/* Quick Actions */}
+        <Card className="animate-fade-in shadow-xl border-2" style={{ animationDelay: "250ms" }}>
+          <CardHeader className="bg-gradient-card border-b">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <FontAwesomeIcon icon={faChartBar} className="w-5 h-5 text-purple-600" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <CardTitle className="text-lg md:text-xl">Quick Actions</CardTitle>
+                <CardDescription>Access frequently used features</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Link to="/admin/exams" className="group">
+                <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border-2 border-blue-200 hover:border-blue-400 transition-all hover:shadow-lg cursor-pointer">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-blue-500 rounded-lg">
+                      <FontAwesomeIcon icon={faGraduationCap} className="w-4 h-4 text-white" />
+                    </div>
+                    <h3 className="font-semibold text-blue-900">Exams</h3>
+                  </div>
+                  <p className="text-xs text-blue-700 mb-2">Manage exams & results</p>
+                  <div className="flex items-center gap-1 text-blue-600 text-xs font-medium group-hover:gap-2 transition-all">
+                    <span>Go to Exams</span>
+                    <FontAwesomeIcon icon={faArrowRight} className="w-3 h-3" />
+                  </div>
+                </div>
+              </Link>
+
+              <Link to="/admin/timetable" className="group">
+                <div className="p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border-2 border-green-200 hover:border-green-400 transition-all hover:shadow-lg cursor-pointer">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-green-500 rounded-lg">
+                      <FontAwesomeIcon icon={faClock} className="w-4 h-4 text-white" />
+                    </div>
+                    <h3 className="font-semibold text-green-900">Timetable</h3>
+                  </div>
+                  <p className="text-xs text-green-700 mb-2">Manage class schedules</p>
+                  <div className="flex items-center gap-1 text-green-600 text-xs font-medium group-hover:gap-2 transition-all">
+                    <span>Go to Timetable</span>
+                    <FontAwesomeIcon icon={faArrowRight} className="w-3 h-3" />
+                  </div>
+                </div>
+              </Link>
+
+              <Link to="/admin/assignments" className="group">
+                <div className="p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl border-2 border-orange-200 hover:border-orange-400 transition-all hover:shadow-lg cursor-pointer">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-orange-500 rounded-lg">
+                      <FontAwesomeIcon icon={faClipboard} className="w-4 h-4 text-white" />
+                    </div>
+                    <h3 className="font-semibold text-orange-900">Assignments</h3>
+                  </div>
+                  <p className="text-xs text-orange-700 mb-2">Track homework & projects</p>
+                  <div className="flex items-center gap-1 text-orange-600 text-xs font-medium group-hover:gap-2 transition-all">
+                    <span>Go to Assignments</span>
+                    <FontAwesomeIcon icon={faArrowRight} className="w-3 h-3" />
+                  </div>
+                </div>
+              </Link>
+
+              <Link to="/admin/communications" className="group">
+                <div className="p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border-2 border-purple-200 hover:border-purple-400 transition-all hover:shadow-lg cursor-pointer">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-purple-500 rounded-lg">
+                      <FontAwesomeIcon icon={faBullhorn} className="w-4 h-4 text-white" />
+                    </div>
+                    <h3 className="font-semibold text-purple-900">Communications</h3>
+                  </div>
+                  <p className="text-xs text-purple-700 mb-2">Announcements & messages</p>
+                  <div className="flex items-center gap-1 text-purple-600 text-xs font-medium group-hover:gap-2 transition-all">
+                    <span>Go to Communications</span>
+                    <FontAwesomeIcon icon={faArrowRight} className="w-3 h-3" />
+                  </div>
+                </div>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Dynamic Status Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">

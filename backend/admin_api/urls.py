@@ -7,7 +7,13 @@ from .views import (
     ClassListView, ClassDetailView, ClassStatsView, ClassCreateView,
     SubjectListView, SubjectDetailView, SubjectCreateView,
     GradeListView, GradeDetailView, GradeStatsView,
-    ReportViewSet, EnrollmentViewSet, ClassRoomViewSet
+    ReportViewSet, EnrollmentViewSet, ClassRoomViewSet,
+    FeeStructureViewSet, FeePaymentViewSet,
+    ExamViewSet, ExamScheduleViewSet, ExamResultViewSet,
+    TimeSlotViewSet, TimetableViewSet,
+    AssignmentViewSet, AssignmentSubmissionViewSet,
+    AnnouncementViewSet, MessageViewSet, NotificationViewSet,
+    UserViewSet
 )
 from .views.student_viewset import StudentViewSet
 from .views.teacher_viewset import TeacherViewSet
@@ -36,6 +42,21 @@ router.register(r'grades', GradeViewSet, basename='grade')
 router.register(r'attendance', AttendanceViewSet, basename='attendance')
 router.register(r'teacher-assignments', TeacherAssignmentViewSet, basename='teacher-assignment')
 router.register(r'class-subjects', ClassSubjectViewSet, basename='class-subject')
+
+# New modules
+router.register(r'fee-structures', FeeStructureViewSet, basename='fee-structure')
+router.register(r'fee-payments', FeePaymentViewSet, basename='fee-payment')
+router.register(r'exams', ExamViewSet, basename='exam')
+router.register(r'exam-schedules', ExamScheduleViewSet, basename='exam-schedule')
+router.register(r'exam-results', ExamResultViewSet, basename='exam-result')
+router.register(r'time-slots', TimeSlotViewSet, basename='time-slot')
+router.register(r'timetables', TimetableViewSet, basename='timetable')
+router.register(r'assignments', AssignmentViewSet, basename='assignment')
+router.register(r'assignment-submissions', AssignmentSubmissionViewSet, basename='assignment-submission')
+router.register(r'announcements', AnnouncementViewSet, basename='announcement')
+router.register(r'messages', MessageViewSet, basename='message')
+router.register(r'notifications-v2', NotificationViewSet, basename='notification-v2')
+router.register(r'users', UserViewSet, basename='user')
 
 urlpatterns = [
     # Dashboard

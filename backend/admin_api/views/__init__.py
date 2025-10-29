@@ -8,6 +8,12 @@ from .grade import GradeListView, GradeDetailView, GradeStatsView
 from .enhanced_reports import ReportViewSet
 from .enrollment import EnrollmentViewSet
 from .classroom import ClassRoomViewSet
+from .fee import FeeStructureViewSet, FeePaymentViewSet
+from .exam import ExamViewSet, ExamScheduleViewSet, ExamResultViewSet
+from .timetable import TimeSlotViewSet, TimetableViewSet
+from .assignment import AssignmentViewSet, AssignmentSubmissionViewSet
+from .communication import AnnouncementViewSet, MessageViewSet, NotificationViewSet
+from .user import UserViewSet
 
 __all__ = [
     'AttendanceListCreateView',
@@ -36,5 +42,18 @@ __all__ = [
     'GradeStatsView',
     'ReportViewSet',
     'EnrollmentViewSet',
-    'ClassRoomViewSet'
+    'ClassRoomViewSet',
+    'FeeStructureViewSet',
+    'FeePaymentViewSet',
+    'ExamViewSet',
+    'ExamScheduleViewSet',
+    'ExamResultViewSet',
+    'TimeSlotViewSet',
+    'TimetableViewSet',
+    'AssignmentViewSet',
+    'AssignmentSubmissionViewSet',
+    'AnnouncementViewSet',
+    'MessageViewSet',
+    'NotificationViewSet',
+    'UserViewSet',
 ]
