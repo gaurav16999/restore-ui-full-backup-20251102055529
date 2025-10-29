@@ -78,8 +78,8 @@ const GradesNoDashboard = () => {
       const [gradesData, statsData, studentsData, subjectsData] = await Promise.all([
         getGrades(accessToken),
         getGradeStats(accessToken),
-        getStudents(accessToken),
-        getSubjects(accessToken)
+        getStudents(),
+        getSubjects()
       ]);
 
       setGrades(gradesData);
