@@ -15,16 +15,28 @@ async function apiRequest(url: string, options: RequestInit = {}) {
     clearTimeout(timeoutId);
     
     if (!response.ok) {
-      if (response.status === 404) {
-        throw new Error(`Server endpoint not found (${response.status}). Please ensure the backend server is running at ${API_BASE}`);
+      // Try to get error details from response
+      let errorMessage = `Request failed with status ${response.status}`;
+      try {
+        const errorData = await response.json();
+        if (errorData.detail) {
+          errorMessage = errorData.detail;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        } else {
+          errorMessage = JSON.stringify(errorData);
+        }
+      } catch (e) {
+        // If can't parse JSON, use status-based messages
+        if (response.status === 404) {
+          errorMessage = `Server endpoint not found (${response.status}). Please ensure the backend server is running at ${API_BASE}`;
+        } else if (response.status === 401) {
+          errorMessage = 'Authentication failed. Please check your credentials.';
+        } else if (response.status === 500) {
+          errorMessage = 'Server error. Please try again later.';
+        }
       }
-      if (response.status === 401) {
-        throw new Error('Authentication failed. Please login again.');
-      }
-      if (response.status === 500) {
-        throw new Error('Server error. Please try again later.');
-      }
-      throw new Error(`Request failed with status ${response.status}`);
+      throw new Error(errorMessage);
     }
     
     return response;
@@ -41,11 +53,11 @@ async function apiRequest(url: string, options: RequestInit = {}) {
   }
 }
 
-export async function postToken(username: string, password: string) {
+export async function postToken(email: string, password: string) {
   const res = await apiRequest(`${API_BASE}/api/auth/token/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ email, password }),  // Send as 'email' field, not 'username'
   });
   return res.json();
 }

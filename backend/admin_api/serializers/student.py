@@ -108,20 +108,49 @@ class StudentCreateSerializer(serializers.ModelSerializer):
         return value
     
     def generate_student_id(self):
-        """Generate unique student ID with format STU-XXXXX"""
+        """
+        Generate unique student ID with format YYSSSSS
+        YY = last 2 digits of enrollment year
+        SSSSS = random 5-digit number
+        This will be used for both username and roll_no
+        """
+        from datetime import datetime
         import random
-        import string
         
-        while True:
-            # Generate 5 random digits
-            random_digits = ''.join(random.choices(string.digits, k=5))
-            student_id = f"STU-{random_digits}"
+        # Get current year's last 2 digits
+        current_year = datetime.now().year
+        year_prefix = str(current_year)[-2:]
+        
+        max_attempts = 100
+        for _ in range(max_attempts):
+            # Generate random 5-digit number (10000 to 99999)
+            random_number = random.randint(10000, 99999)
+            student_id = f"{year_prefix}{random_number}"
             
-            # Check if this ID already exists
-            if not Student.objects.filter(roll_no=student_id).exists():
+            # Check if this ID already exists as roll_no or username
+            if not Student.objects.filter(roll_no=student_id).exists() and \
+               not User.objects.filter(username=student_id).exists():
                 return student_id
+        
+        # Fallback to timestamp-based if all random attempts failed
+        import time
+        timestamp_suffix = str(int(time.time()))[-5:]
+        return f"{year_prefix}{timestamp_suffix}"
 
     def create(self, validated_data):
+        """
+        Create a new student with auto-generated username and roll_no.
+        
+        Both username and roll_no use the same format: YYSSSSS
+        - YY: Last 2 digits of enrollment year (e.g., 25 for 2025)
+        - SSSSS: 5-digit random number (e.g., 12345, 98765)
+        
+        Examples:
+        - Student in 2025: username=2512345, roll_no=2512345
+        - Student in 2026: username=2698765, roll_no=2698765
+        
+        This ensures username and roll_no are always the same and unique.
+        """
         # Map alias field 'dob' to model's 'date_of_birth' if provided
         if 'dob' in validated_data and validated_data.get('dob'):
             validated_data['date_of_birth'] = validated_data.pop('dob')
@@ -132,9 +161,12 @@ class StudentCreateSerializer(serializers.ModelSerializer):
         if 'class_assigned' in validated_data and validated_data.get('class_assigned'):
             validated_data['class_name'] = validated_data.pop('class_assigned')
         
-        # Auto-generate roll_no if not provided (after alias mapping)
+        # Generate unique ID for both username and roll_no
         if 'roll_no' not in validated_data or not validated_data.get('roll_no'):
-            validated_data['roll_no'] = self.generate_student_id()
+            student_id = self.generate_student_id()
+            validated_data['roll_no'] = student_id
+        else:
+            student_id = validated_data['roll_no']
 
         # Extract user data
         first_name = validated_data.pop('first_name')
@@ -142,15 +174,8 @@ class StudentCreateSerializer(serializers.ModelSerializer):
         email = validated_data.pop('email')
         password = validated_data.pop('password')
         
-        # Generate username from first_name (lowercase, remove spaces)
-        base_username = first_name.lower().replace(' ', '')
-        username = base_username
-        counter = 1
-        
-        # Ensure username is unique
-        while User.objects.filter(username=username).exists():
-            username = f"{base_username}{counter}"
-            counter += 1
+        # Use the same ID for username as roll_no
+        username = student_id
         
         user_data = {
             'first_name': first_name,

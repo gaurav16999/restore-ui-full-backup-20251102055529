@@ -263,13 +263,22 @@ class NotificationsView(APIView):
         notification_id = request.data.get('id')
         
         if action == 'mark_read' and notification_id:
+            # Check if this is a temporary ID (dynamically generated notification)
+            if isinstance(notification_id, str) and notification_id.startswith('temp_'):
+                # Temporary notifications don't exist in database, just return success
+                return Response({'status': 'success', 'message': 'Temporary notification acknowledged'})
+            
             try:
                 notification = Notification.objects.get(id=notification_id, user=request.user)
                 notification.is_read = True
                 notification.save()
                 return Response({'status': 'success', 'message': 'Notification marked as read'})
             except Notification.DoesNotExist:
-                return Response({'status': 'error', 'message': 'Notification not found'}, status=404)
+                # If notification not found, still return success (might have been deleted)
+                return Response({'status': 'success', 'message': 'Notification not found or already deleted'})
+            except (ValueError, TypeError):
+                # Invalid ID format, return success anyway
+                return Response({'status': 'success', 'message': 'Invalid notification ID'})
         
         elif action == 'mark_all_read':
             Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)

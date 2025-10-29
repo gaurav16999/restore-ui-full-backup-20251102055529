@@ -9,6 +9,10 @@ class User(AbstractUser):
         ('student', 'Student'),
     )
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='student')
+    email = models.EmailField(unique=True)  # Make email unique and required
+    
+    USERNAME_FIELD = 'email'  # Use email for authentication
+    REQUIRED_FIELDS = ['username']  # Username is still required but not for login
 
     def __str__(self):
-        return f"{self.username} ({self.role})"
+        return f"{self.email} ({self.role})"

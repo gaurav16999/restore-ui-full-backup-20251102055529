@@ -59,7 +59,12 @@ const App = () => (
       <Sonner />
       <AuthProvider>
         <NotificationProvider>
-          <BrowserRouter>
+          <BrowserRouter
+            future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true,
+            }}
+          >
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/test" element={<SimpleTest />} />

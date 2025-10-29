@@ -21,6 +21,7 @@ from .views.attendance import (
     AttendanceListCreateView, AttendanceDetailView, ClassStudentsView
 )
 from .views.room import RoomListView, RoomDetailView, RoomCreateView, RoomStatsView
+from student.notifications_view import NotificationsView
 
 # DRF Router for ViewSets (clean prefixes under /api/admin/)
 router = DefaultRouter()
@@ -81,6 +82,9 @@ urlpatterns = [
     path('attendance/', AttendanceListCreateView.as_view(), name='attendance-list-create'),
     path('attendance/<int:pk>/', AttendanceDetailView.as_view(), name='attendance-detail'),
     path('class-students/', ClassStudentsView.as_view(), name='class-students'),
+    
+    # Notifications
+    path('notifications/', NotificationsView.as_view(), name='admin-notifications'),
 ]
 
 # Include router URLs at /api/admin/

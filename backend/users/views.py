@@ -2,7 +2,16 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from .serializers import UserSerializer, RegisterSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
+from .serializers import UserSerializer, RegisterSerializer, EmailTokenObtainPairSerializer
+
+
+class EmailTokenObtainPairView(TokenObtainPairView):
+    """
+    Custom token view that uses our EmailTokenObtainPairSerializer
+    This allows login with email while accepting 'username' field from frontend
+    """
+    serializer_class = EmailTokenObtainPairSerializer
 
 
 class ProfileView(APIView):

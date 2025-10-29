@@ -4,7 +4,7 @@ import { postToken, getProfile, postRefreshToken } from './api';
 interface AuthContextValue {
   user: any | null;
   accessToken: string;
-  login: (username: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   loading: boolean;
 }
@@ -182,9 +182,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [refreshToken]);
 
-  const login = async (username: string, password: string) => {
+  const login = async (email: string, password: string) => {
     try {
-      const tokenData = await postToken(username, password);
+      const tokenData = await postToken(email, password);
       window.localStorage.setItem('accessToken', tokenData.access);
       window.localStorage.setItem('refreshToken', tokenData.refresh);
       setAccessToken(tokenData.access);
@@ -209,9 +209,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   window.localStorage.setItem('accessToken', demoToken);
   setAccessToken(demoToken);
         
-        // Create demo user profile based on username
+        // Create demo user profile based on email
         let demoProfile;
-        if (username.toLowerCase().includes('admin')) {
+        if (email.toLowerCase().includes('admin')) {
           demoProfile = {
             id: 1,
             username: 'admin',
@@ -221,7 +221,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             role: 'admin',
             profile_picture: null
           };
-        } else if (username.toLowerCase().includes('teacher')) {
+        } else if (email.toLowerCase().includes('teacher')) {
           demoProfile = {
             id: 2,
             username: 'teacher',

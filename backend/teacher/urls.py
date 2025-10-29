@@ -13,6 +13,7 @@ from .views import (
     AttendanceView,
     AttendanceSubmitView
 )
+from student.notifications_view import NotificationsView
 
 urlpatterns = [
     path('dashboard/', DashboardView.as_view(), name='teacher-dashboard'),
@@ -27,4 +28,5 @@ urlpatterns = [
     path('resources/upload/', UploadResourceView.as_view(), name='teacher-upload-resource'),
     path('attendance/', AttendanceView.as_view(), name='teacher-attendance'),
     path('attendance/submit/', AttendanceSubmitView.as_view(), name='teacher-attendance-submit'),
+    path('notifications/', NotificationsView.as_view(), name='teacher-notifications'),
 ]
