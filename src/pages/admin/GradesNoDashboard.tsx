@@ -58,7 +58,7 @@ const GradesNoDashboard = () => {
     grade_type: '',
     score: '',
     max_score: '',
-    comments: ''
+    notes: ''
   });
 
   const fetchData = async () => {
@@ -123,7 +123,8 @@ const GradesNoDashboard = () => {
         grade_type: formData.grade_type,
         score: parseFloat(formData.score),
         max_score: parseFloat(formData.max_score),
-        comments: formData.comments
+        notes: formData.notes,
+        date_recorded: new Date().toISOString().split('T')[0]
       };
 
       if (editingGrade) {
@@ -148,7 +149,7 @@ const GradesNoDashboard = () => {
         grade_type: '',
         score: '',
         max_score: '',
-        comments: ''
+        notes: ''
       });
       fetchData();
     } catch (error: any) {
@@ -171,7 +172,7 @@ const GradesNoDashboard = () => {
       grade_type: grade.grade_type,
       score: grade.score.toString(),
       max_score: grade.max_score.toString(),
-      comments: grade.comments || ''
+      notes: grade.notes || ''
     });
     setIsDialogOpen(true);
   };
@@ -213,7 +214,7 @@ const GradesNoDashboard = () => {
       grade_type: '',
       score: '',
       max_score: '',
-      comments: ''
+      notes: ''
     });
     setIsDialogOpen(true);
   };
@@ -578,12 +579,12 @@ const GradesNoDashboard = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="comments">Comments (Optional)</Label>
+              <Label htmlFor="notes">Notes (Optional)</Label>
               <Textarea
-                id="comments"
-                value={formData.comments}
-                onChange={(e) => setFormData({...formData, comments: e.target.value})}
-                placeholder="Add any comments about this grade..."
+                id="notes"
+                value={formData.notes}
+                onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                placeholder="Add any notes about this grade..."
                 rows={3}
               />
             </div>
