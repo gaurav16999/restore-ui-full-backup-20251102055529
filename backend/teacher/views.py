@@ -29,7 +29,7 @@ class DashboardView(APIView):
                 'user': request.user.username,
                 'teacher_name': f"{request.user.first_name} {request.user.last_name}",
                 'stats': [
-                    { 'title': 'My Classes', 'value': str(teacher_classes.count()), 'color': 'primary' },
+                    { 'title': 'My Classes', 'value': str(len(teacher_classes)), 'color': 'primary' },  # Fixed: use len() instead of .count()
                     { 'title': 'Total Students', 'value': str(total_students), 'color': 'secondary' },
                     { 'title': 'Pending Grades', 'value': str(pending_grades), 'color': 'accent' },
                     { 'title': 'Subject', 'value': teacher.subject, 'color': 'primary' },

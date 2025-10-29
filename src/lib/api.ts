@@ -480,7 +480,7 @@ export async function deleteGrade(accessToken: string, id: number) {
 
 // Reports and Analytics functions
 export async function getReports(accessToken: string) {
-  const res = await fetch(`${API_BASE}/api/admin/reports/`, {
+  const res = await fetch(`${API_BASE}/api/admin/reports/analytics/`, {
     headers: { 'Authorization': `Bearer ${accessToken}` },
   });
   if (!res.ok) {
@@ -490,8 +490,13 @@ export async function getReports(accessToken: string) {
   return res.json();
 }
 
-export async function getClassAnalytics(accessToken: string) {
-  const res = await fetch(`${API_BASE}/api/admin/analytics/class/`, {
+export async function getClassAnalytics(accessToken: string, filters?: { class?: string, subject?: string }) {
+  const params = new URLSearchParams();
+  if (filters?.class) params.append('class', filters.class);
+  if (filters?.subject) params.append('subject', filters.subject);
+  
+  const url = `${API_BASE}/api/admin/reports/analytics/${params.toString() ? '?' + params.toString() : ''}`;
+  const res = await fetch(url, {
     headers: { 'Authorization': `Bearer ${accessToken}` },
   });
   if (!res.ok) {
@@ -502,7 +507,7 @@ export async function getClassAnalytics(accessToken: string) {
 }
 
 export async function getStudentProgress(accessToken: string) {
-  const res = await fetch(`${API_BASE}/api/admin/analytics/progress/`, {
+  const res = await fetch(`${API_BASE}/api/admin/reports/analytics/`, {
     headers: { 'Authorization': `Bearer ${accessToken}` },
   });
   if (!res.ok) {
@@ -513,7 +518,7 @@ export async function getStudentProgress(accessToken: string) {
 }
 
 export async function getGradeDistribution(accessToken: string) {
-  const res = await fetch(`${API_BASE}/api/admin/analytics/distribution/`, {
+  const res = await fetch(`${API_BASE}/api/admin/reports/analytics/`, {
     headers: { 'Authorization': `Bearer ${accessToken}` },
   });
   if (!res.ok) {

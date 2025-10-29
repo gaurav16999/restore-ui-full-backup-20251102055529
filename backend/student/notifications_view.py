@@ -15,47 +15,56 @@ class NotificationsView(APIView):
     def get(self, request):
         user = request.user
         
-        # Generate notifications based on user role
-        if hasattr(user, 'student_profile'):
-            notifications = self._generate_student_notifications(user)
-        elif hasattr(user, 'teacher_profile'):
-            notifications = self._generate_teacher_notifications(user)
-        elif user.is_superuser or user.is_staff:
-            notifications = self._generate_admin_notifications(user)
-        else:
-            notifications = []
-        
-        # Get saved notifications from database
-        saved_notifications = Notification.objects.filter(user=user)[:10]
-        
-        # Combine and format notifications
-        all_notifications = list(saved_notifications.values(
-            'id', 'title', 'message', 'notification_type', 'priority', 'action_url', 'is_read', 'created_at'
-        ))
-        
-        # Add generated notifications
-        all_notifications.extend(notifications)
-        
-        # Format for frontend
-        formatted_notifications = []
-        for notif in all_notifications:
-            formatted_notifications.append({
-                'id': str(notif.get('id', f"temp_{len(formatted_notifications)}")),
-                'title': notif['title'],
-                'message': notif['message'],
-                'type': notif.get('notification_type', notif.get('type', 'info')),
-                'priority': notif.get('priority', 'medium'),
-                'actionUrl': notif.get('action_url', notif.get('actionUrl', '')),
-                'read': notif.get('is_read', notif.get('read', False)),
-                'timestamp': notif.get('created_at', notif.get('timestamp', datetime.now())).isoformat() if isinstance(notif.get('created_at', notif.get('timestamp')), datetime) else notif.get('created_at', notif.get('timestamp', datetime.now().isoformat()))
-            })
-        
-        return Response(formatted_notifications)
+        try:
+            # Generate notifications based on user role
+            if hasattr(user, 'student_profile'):
+                notifications = self._generate_student_notifications(user)
+            elif hasattr(user, 'teacher_profile'):
+                notifications = self._generate_teacher_notifications(user)
+            elif user.is_superuser or user.is_staff or user.role == 'admin':
+                notifications = self._generate_admin_notifications(user)
+            else:
+                notifications = []
+            
+            # Get saved notifications from database
+            saved_notifications = Notification.objects.filter(user=user)[:10]
+            
+            # Combine and format notifications
+            all_notifications = list(saved_notifications.values(
+                'id', 'title', 'message', 'notification_type', 'priority', 'action_url', 'is_read', 'created_at'
+            ))
+            
+            # Add generated notifications
+            all_notifications.extend(notifications)
+            
+            # Format for frontend
+            formatted_notifications = []
+            for notif in all_notifications:
+                formatted_notifications.append({
+                    'id': str(notif.get('id', f"temp_{len(formatted_notifications)}")),
+                    'title': notif['title'],
+                    'message': notif['message'],
+                    'type': notif.get('notification_type', notif.get('type', 'info')),
+                    'priority': notif.get('priority', 'medium'),
+                    'actionUrl': notif.get('action_url', notif.get('actionUrl', '')),
+                    'read': notif.get('is_read', notif.get('read', False)),
+                    'timestamp': notif.get('created_at', notif.get('timestamp', datetime.now())).isoformat() if isinstance(notif.get('created_at', notif.get('timestamp')), datetime) else notif.get('created_at', notif.get('timestamp', datetime.now().isoformat()))
+                })
+            
+            return Response(formatted_notifications)
+        except Exception as e:
+            # Return empty list on error to prevent breaking the UI
+            return Response([])
     
     def _generate_student_notifications(self, user):
         """Generate dynamic notifications for students"""
         notifications = []
-        student = user.student_profile
+        
+        try:
+            student = user.student_profile
+        except AttributeError:
+            # User doesn't have a student profile
+            return notifications
         
         # Get time of day for greeting
         hour = datetime.now().hour
@@ -131,7 +140,12 @@ class NotificationsView(APIView):
     def _generate_teacher_notifications(self, user):
         """Generate dynamic notifications for teachers"""
         notifications = []
-        teacher = user.teacher_profile
+        
+        try:
+            teacher = user.teacher_profile
+        except AttributeError:
+            # User doesn't have a teacher profile
+            return notifications
         
         # Get time of day
         hour = datetime.now().hour

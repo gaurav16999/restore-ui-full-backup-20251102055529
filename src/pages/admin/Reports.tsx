@@ -76,53 +76,29 @@ const AdminReports = () => {
         return;
       }
 
-      // Fetch each endpoint individually to handle partial failures
-      const fetchWithFallback = async (fetchFn: () => Promise<any>, fallback: any) => {
-        try {
-          return await fetchFn();
-        } catch (error) {
-          console.warn('API call failed, using fallback:', error);
-          return fallback;
-        }
-      };
+      // Fetch all data from the unified analytics endpoint
+      const analyticsResponse = await getReports(accessToken);
+      
+      console.log('Reports page - Analytics response:', analyticsResponse);
 
-      const [
-        reportsData,
-        analyticsData,
-        distributionData,
-        progressData,
-        studentsData,
-        subjectsData
-      ] = await Promise.all([
-        fetchWithFallback(() => getReports(accessToken), []),
-        fetchWithFallback(() => getClassAnalytics(accessToken), {}),
-        fetchWithFallback(() => getGradeDistribution(accessToken), []),
-        fetchWithFallback(() => getStudentProgress(accessToken), []),
-        fetchWithFallback(() => getStudents(), []),
-        fetchWithFallback(() => getSubjects(), [])
-      ]);
-
-      console.log('Reports page - Data fetched:', {
-        reports: reportsData,
-        analytics: analyticsData,
-        distribution: distributionData,
-        progress: progressData,
-        students: studentsData,
-        subjects: subjectsData
-      });
-
-      setReports(Array.isArray(reportsData) ? reportsData : []);
-      setClassAnalytics(analyticsData);
-      setGradeDistribution(Array.isArray(distributionData) ? distributionData : []);
-      setStudentProgress(Array.isArray(progressData) ? progressData : []);
+      // Extract data from the response
+      setReports(analyticsResponse.student_reports || []);
+      setClassAnalytics(analyticsResponse.analytics || {});
+      setGradeDistribution(analyticsResponse.grade_distribution || []);
+      setStudentProgress(analyticsResponse.progress_tracking || []);
+      
+      // Fetch additional data for filters
+      const studentsData = await getStudents();
+      const subjectsData = await getSubjects();
+      
       setStudents(Array.isArray(studentsData) ? studentsData : []);
       setSubjects(Array.isArray(subjectsData) ? subjectsData : []);
       
-      // Show success toast if we got any data
-      if (Array.isArray(reportsData) && reportsData.length > 0) {
+      // Show success toast
+      if (analyticsResponse.student_reports && analyticsResponse.student_reports.length > 0) {
         toast({
           title: "Success",
-          description: `Loaded ${reportsData.length} student reports`,
+          description: `Loaded ${analyticsResponse.student_reports.length} student reports`,
         });
       }
       
@@ -130,9 +106,14 @@ const AdminReports = () => {
       console.error('Reports page - Failed to fetch reports:', error);
       toast({
         title: "Error",
-        description: "Failed to fetch reports data",
+        description: error.message || "Failed to fetch reports data",
         variant: "destructive",
       });
+      // Set empty data on error
+      setReports([]);
+      setClassAnalytics({});
+      setGradeDistribution([]);
+      setStudentProgress([]);
     } finally {
       console.log('Reports page - Setting loading to false');
       setLoading(false);
@@ -176,11 +157,10 @@ const AdminReports = () => {
   };
 
   const filteredReports = (Array.isArray(reports) ? reports : []).filter(report => {
-    const matchesSearch = report.student_name?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesClass = selectedClass === "all" || report.class_name === selectedClass;
-    const matchesSubject = selectedSubject === "all" || report.subject === selectedSubject;
+    const matchesSearch = report.student?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesClass = selectedClass === "all" || report.class === selectedClass;
     
-    return matchesSearch && matchesClass && matchesSubject;
+    return matchesSearch && matchesClass;
   });
 
   const sidebarItems = getAdminSidebarItems("/admin/reports");
@@ -357,11 +337,11 @@ const AdminReports = () => {
                           <TableRow key={report.id}>
                             <TableCell>
                               <div>
-                                <div className="font-medium">{report.student_name}</div>
+                                <div className="font-medium">{report.student}</div>
                                 <div className="text-sm text-muted-foreground">{report.roll_no}</div>
                               </div>
                             </TableCell>
-                            <TableCell>{report.class_name}</TableCell>
+                            <TableCell>{report.class}</TableCell>
                             <TableCell>
                               <div className="flex items-center space-x-2">
                                 <span className="font-mono">{report.overall_average}%</span>
