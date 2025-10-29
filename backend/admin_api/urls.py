@@ -74,9 +74,8 @@ urlpatterns = [
     path('rooms/stats/', RoomStatsView.as_view(), name='room-stats'),
     path('rooms/<int:pk>/', RoomDetailView.as_view(), name='room-detail'),
     
-    # Grades
-    path('grades/', GradeListView.as_view(), name='grade-list'),
-    path('grades/<int:pk>/', GradeDetailView.as_view(), name='grade-detail'),
+    # Grades - handled by GradeViewSet in router (see router.register above)
+    # Keeping only stats endpoint as it has custom logic
     path('grades/stats/', GradeStatsView.as_view(), name='grade-stats'),
 
     # Attendance

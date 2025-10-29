@@ -94,6 +94,9 @@ const GradesWithDashboard = () => {
       const studentsArray = Array.isArray(studentsData) ? studentsData : (studentsData?.results || []);
       const subjectsArray = Array.isArray(subjectsData) ? subjectsData : (subjectsData?.results || []);
 
+      console.log('Grades Dashboard - Subjects fetched:', subjectsArray);
+      console.log('Grades Dashboard - Students fetched:', studentsArray);
+
       setGrades(gradesArray);
       setStats(statsData);
       setStudents(studentsArray);
@@ -555,7 +558,7 @@ const GradesWithDashboard = () => {
                     <SelectContent>
                       {subjects.map((subject: any) => (
                         <SelectItem key={subject.id} value={subject.id.toString()}>
-                          {subject.name}
+                          {subject.title}
                         </SelectItem>
                       ))}
                     </SelectContent>
