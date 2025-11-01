@@ -386,7 +386,7 @@ const TimetableManagement = () => {
                         <SelectValue placeholder="Filter by class" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">All Classes</SelectItem>
+                        <SelectItem value="all-classes">All Classes</SelectItem>
                         {classes.map((cls) => (
                           <SelectItem key={cls.id} value={cls.id.toString()}>
                             {cls.name}
@@ -447,7 +447,7 @@ const TimetableManagement = () => {
                         <SelectValue placeholder="Filter by teacher" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">All Teachers</SelectItem>
+                        <SelectItem value="all-teachers">All Teachers</SelectItem>
                         {teachers.map((teacher) => (
                           <SelectItem key={teacher.id} value={teacher.id.toString()}>
                             {teacher.user ? `${teacher.user.first_name} ${teacher.user.last_name}` : `Teacher ${teacher.id}`}

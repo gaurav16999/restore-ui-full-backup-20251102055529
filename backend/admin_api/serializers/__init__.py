@@ -22,7 +22,7 @@ __all__ = [
     'TeacherCreateSerializer',
     'ClassSerializer',
     'SubjectSerializer',
-    'SubjectListSerializer', 
+    'SubjectListSerializer',
     'SubjectCreateSerializer',
     'GradeSerializer',
     'EnrollmentSerializer',

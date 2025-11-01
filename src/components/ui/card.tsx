@@ -21,9 +21,11 @@ const CardTitle = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HT
 );
 CardTitle.displayName = "CardTitle";
 
-const CardDescription = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLParagraphElement>>(
+const CardDescription = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <p ref={ref} className={cn("text-sm text-muted-foreground", className)} {...props} />
+    // Use a div here so callers can place block-level elements (like inputs or divs)
+    // inside the description without violating HTML nesting rules.
+    <div ref={ref} className={cn("text-sm text-muted-foreground", className)} {...props} />
   ),
 );
 CardDescription.displayName = "CardDescription";

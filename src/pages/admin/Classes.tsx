@@ -34,7 +34,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { getClasses, getClassesStats, getSubjects, createClass, createSubject, getTeachers, updateClass, updateSubject, deleteClass, deleteSubject, getRooms } from "@/lib/api";
+import { getClasses, getClassesStats, createClass, getTeachers, updateClass, deleteClass, getRooms } from "@/lib/api";
 import { convertADtoBS, convertBStoAD, isValidBSDate, isValidADDate } from "@/lib/dateUtils";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -58,20 +58,15 @@ import {
 
 const AdminClasses = () => {
   const [classes, setClasses] = useState<any[]>([]);
-  const [subjects, setSubjects] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
   const [rooms, setRooms] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isClassDialogOpen, setIsClassDialogOpen] = useState(false);
-  const [isSubjectDialogOpen, setIsSubjectDialogOpen] = useState(false);
   const [isClassEditMode, setIsClassEditMode] = useState(false);
-  const [isSubjectEditMode, setIsSubjectEditMode] = useState(false);
   const [editingClassId, setEditingClassId] = useState<number | null>(null);
-  const [editingSubjectId, setEditingSubjectId] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deleteType, setDeleteType] = useState<'class' | 'subject' | null>(null);
   const [itemToDelete, setItemToDelete] = useState<number | null>(null);
   
   // Conflict detection states
@@ -198,18 +193,13 @@ const AdminClasses = () => {
     calendar_type: 'AD' // Default to AD (Gregorian calendar)
   });
 
-  const [subjectFormData, setSubjectFormData] = useState({
-    name: ''
-  });
-
   const fetchData = async () => {
     try {
       const token = localStorage.getItem('accessToken');
       if (!token) return;
 
-      const [classesData, subjectsData, statsData, teachersData, roomsData] = await Promise.all([
+      const [classesData, statsData, teachersData, roomsData] = await Promise.all([
         getClasses(),
-        getSubjects(),
         getClassesStats(),
         getTeachers(),
         getRooms()
@@ -217,12 +207,10 @@ const AdminClasses = () => {
 
       // Handle paginated responses
       const classesArray = Array.isArray(classesData) ? classesData : (classesData?.results || []);
-      const subjectsArray = Array.isArray(subjectsData) ? subjectsData : (subjectsData?.results || []);
       const teachersArray = Array.isArray(teachersData) ? teachersData : (teachersData?.results || []);
       const roomsArray = Array.isArray(roomsData) ? roomsData : (roomsData?.results || []);
 
       setClasses(classesArray);
-      setSubjects(subjectsArray);
       setStats(statsData || {
         total_classes: 0,
         total_subjects: 0,
@@ -240,7 +228,6 @@ const AdminClasses = () => {
       });
       // Set default empty values
       setClasses([]);
-      setSubjects([]);
       setTeachers([]);
       setRooms([]);
       setStats({
@@ -328,44 +315,6 @@ const AdminClasses = () => {
     }
   };
 
-  const handleSubjectSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-
-    try {
-      const token = localStorage.getItem('accessToken');
-      if (!token) return;
-
-      if (isSubjectEditMode && editingSubjectId) {
-        await updateSubject(token, editingSubjectId, subjectFormData);
-        toast({
-          title: "Success",
-          description: "Subject updated successfully",
-        });
-      } else {
-        await createSubject(token, subjectFormData);
-        toast({
-          title: "Success",
-          description: "Subject added successfully",
-        });
-      }
-
-      setIsSubjectDialogOpen(false);
-      setIsSubjectEditMode(false);
-      setEditingSubjectId(null);
-      setSubjectFormData({ name: '' });
-      fetchData();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || `Failed to ${isSubjectEditMode ? 'update' : 'add'} subject`,
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const handleEditClass = (classItem: any) => {
     setIsClassEditMode(true);
     setEditingClassId(classItem.id);
@@ -383,15 +332,6 @@ const AdminClasses = () => {
     setIsClassDialogOpen(true);
   };
 
-  const handleEditSubject = (subject: any) => {
-    setIsSubjectEditMode(true);
-    setEditingSubjectId(subject.id);
-    setSubjectFormData({
-      name: subject.name || ''
-    });
-    setIsSubjectDialogOpen(true);
-  };
-
   const handleAddNewClass = () => {
     setIsClassEditMode(false);
     setEditingClassId(null);
@@ -399,48 +339,31 @@ const AdminClasses = () => {
     setIsClassDialogOpen(true);
   };
 
-  const handleAddNewSubject = () => {
-    setIsSubjectEditMode(false);
-    setEditingSubjectId(null);
-    setSubjectFormData({ name: '' });
-    setIsSubjectDialogOpen(true);
-  };
-
-  const openDeleteDialog = (type: 'class' | 'subject', id: number) => {
-    setDeleteType(type);
+  const openDeleteDialog = (id: number) => {
     setItemToDelete(id);
     setDeleteDialogOpen(true);
   };
 
   const handleDelete = async () => {
-    if (!itemToDelete || !deleteType) return;
+    if (!itemToDelete) return;
 
     try {
       const token = localStorage.getItem('accessToken');
       if (!token) return;
 
-      if (deleteType === 'class') {
-        await deleteClass(token, itemToDelete);
-        toast({
-          title: "Success",
-          description: "Class deleted successfully",
-        });
-      } else {
-        await deleteSubject(token, itemToDelete);
-        toast({
-          title: "Success",
-          description: "Subject deleted successfully",
-        });
-      }
+      await deleteClass(token, itemToDelete);
+      toast({
+        title: "Success",
+        description: "Class deleted successfully",
+      });
 
       setDeleteDialogOpen(false);
       setItemToDelete(null);
-      setDeleteType(null);
       fetchData();
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || `Failed to delete ${deleteType}`,
+        description: error.message || "Failed to delete class",
         variant: "destructive",
       });
     }
@@ -450,7 +373,7 @@ const AdminClasses = () => {
 
   return (
     <DashboardLayout
-      title="Classes & Subjects"
+      title="Classes"
       userName="Dr. Sarah Johnson"
       userRole="School Administrator"
       sidebarItems={sidebarItems}
@@ -459,49 +382,10 @@ const AdminClasses = () => {
         {/* Header */}
         <div className="flex items-center justify-between animate-fade-in">
           <div>
-            <h2 className="text-3xl font-bold mb-2">Classes & Subjects</h2>
-            <p className="text-muted-foreground text-lg">Manage class schedules and subject assignments</p>
+            <h2 className="text-3xl font-bold mb-2">Class Management</h2>
+            <p className="text-muted-foreground text-lg">Manage class schedules and assignments</p>
           </div>
           <div className="flex gap-3">
-            <Dialog open={isSubjectDialogOpen} onOpenChange={setIsSubjectDialogOpen}>
-              <DialogTrigger asChild>
-                <Button size="lg" variant="outline" className="h-12 border-2 hover:border-primary" onClick={handleAddNewSubject}>
-                  <FontAwesomeIcon icon={faPlus} className="w-5 h-5 mr-2" />
-                  Add Subject
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{isSubjectEditMode ? 'Edit Subject' : 'Add New Subject'}</DialogTitle>
-                  <DialogDescription>
-                    {isSubjectEditMode ? 'Update subject information' : 'Enter subject information'}
-                  </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleSubjectSubmit}>
-                  <div className="grid gap-4 py-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="subject_name">Subject Name *</Label>
-                      <Input
-                        id="subject_name"
-                        placeholder="e.g., Advanced Mathematics"
-                        value={subjectFormData.name}
-                        onChange={(e) => setSubjectFormData({ name: e.target.value })}
-                        required
-                      />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setIsSubjectDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button type="submit" disabled={isSubmitting}>
-                      {isSubmitting ? (isSubjectEditMode ? "Updating..." : "Adding...") : (isSubjectEditMode ? "Update Subject" : "Add Subject")}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
-
             <Dialog open={isClassDialogOpen} onOpenChange={setIsClassDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="lg" className="shadow-lg hover:shadow-xl transition-all h-12" onClick={handleAddNewClass}>
@@ -1081,7 +965,7 @@ const AdminClasses = () => {
                           <FontAwesomeIcon icon={faEdit} className="w-4 h-4 mr-1" />
                           Edit
                         </Button>
-                        <Button variant="outline" size="sm" className="border-2 hover:border-destructive hover:bg-destructive-light hover:text-destructive" onClick={() => openDeleteDialog('class', cls.id)}>
+                        <Button variant="outline" size="sm" className="border-2 hover:border-destructive hover:bg-destructive-light hover:text-destructive" onClick={() => openDeleteDialog(cls.id)}>
                           <FontAwesomeIcon icon={faTrash} className="w-4 h-4 text-destructive" />
                         </Button>
                       </div>
@@ -1094,66 +978,13 @@ const AdminClasses = () => {
           </CardContent>
         </Card>
 
-        {/* Subjects Overview */}
-        <Card className="animate-fade-in shadow-xl border-2" style={{ animationDelay: "150ms" }}>
-          <CardHeader className="bg-gradient-card border-b">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-secondary-light rounded-lg">
-                <FontAwesomeIcon icon={faChalkboardTeacher} className="w-5 h-5 text-secondary" />
-              </div>
-              <div>
-                <CardTitle className="text-xl">Subject Overview</CardTitle>
-                <CardDescription>All subjects across different classes</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-6">
-            {loading ? (
-              <div className="text-center py-8 text-muted-foreground">Loading subjects...</div>
-            ) : subjects.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">No subjects found</div>
-            ) : (
-              <div className="grid md:grid-cols-3 gap-5">
-                {subjects.map((subject, index) => (
-                  <div key={subject.id} className="p-5 bg-primary-light rounded-xl border-2 border-primary/30 hover:border-primary/50 transition-colors">
-                    <h3 className="font-bold text-primary text-lg mb-4">{subject.name}</h3>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between p-2 bg-white rounded-lg">
-                        <span className="text-muted-foreground font-medium">Classes:</span>
-                        <span className="font-bold">{subject.class_count || 0}</span>
-                      </div>
-                      <div className="flex justify-between p-2 bg-white rounded-lg">
-                        <span className="text-muted-foreground font-medium">Teachers:</span>
-                        <span className="font-bold">{subject.teacher_count || 0}</span>
-                      </div>
-                      <div className="flex justify-between p-2 bg-white rounded-lg">
-                        <span className="text-muted-foreground font-medium">Students:</span>
-                        <span className="font-bold">{subject.student_count || 0}</span>
-                      </div>
-                    </div>
-                    <div className="flex gap-2 mt-4">
-                      <Button variant="outline" size="sm" className="flex-1 border-2 hover:border-primary" onClick={() => handleEditSubject(subject)}>
-                        <FontAwesomeIcon icon={faEdit} className="w-4 h-4 mr-1" />
-                        Edit
-                      </Button>
-                      <Button variant="outline" size="sm" className="border-2 hover:border-destructive hover:bg-destructive-light hover:text-destructive" onClick={() => openDeleteDialog('subject', subject.id)}>
-                        <FontAwesomeIcon icon={faTrash} className="w-4 h-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
         {/* Delete Confirmation Dialog */}
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
               <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete the {deleteType} and remove all associated data from the system.
+                This action cannot be undone. This will permanently delete the class and remove all associated data from the system.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

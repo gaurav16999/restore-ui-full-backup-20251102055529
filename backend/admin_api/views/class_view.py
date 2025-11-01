@@ -1,4 +1,4 @@
-from rest_framework import generics, status
+from rest_framework import generics
 from rest_framework.response import Response
 from django.db import models
 from admin_api.models import Class

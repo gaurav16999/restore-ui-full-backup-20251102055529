@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,7 +33,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import authClient from "@/lib/http";
+import { examApi, examScheduleApi, examResultApi, classApi, subjectApi, studentApi } from '@/services/adminApi';
 import { Textarea } from "@/components/ui/textarea";
 
 interface Exam {
@@ -129,20 +130,22 @@ const ExamManagement = () => {
     try {
       setLoading(true);
       const [examsRes, schedulesRes, resultsRes, classesRes, subjectsRes, studentsRes] = await Promise.all([
-        authClient.get('/api/admin/exams/'),
-        authClient.get('/api/admin/exam-schedules/'),
-        authClient.get('/api/admin/exam-results/'),
-        authClient.get('/api/admin/classes/'),
-        authClient.get('/api/admin/subjects/'),
-        authClient.get('/api/admin/students/')
+        examApi.getAll(),
+        examScheduleApi.getAll(),
+        examResultApi.getAll(),
+        classApi.getAll(),
+        subjectApi.getAll(),
+        studentApi.getAll(),
       ]);
 
-      setExams(Array.isArray(examsRes.data) ? examsRes.data : examsRes.data.results || []);
-      setSchedules(Array.isArray(schedulesRes.data) ? schedulesRes.data : schedulesRes.data.results || []);
-      setResults(Array.isArray(resultsRes.data) ? resultsRes.data : resultsRes.data.results || []);
-      setClasses(Array.isArray(classesRes.data) ? classesRes.data : classesRes.data.results || []);
-      setSubjects(Array.isArray(subjectsRes.data) ? subjectsRes.data : subjectsRes.data.results || []);
-      setStudents(Array.isArray(studentsRes.data) ? studentsRes.data : studentsRes.data.results || []);
+      const normalize = (r: any) => Array.isArray(r) ? r : (r && (r.results ?? r.data)) || [];
+
+      setExams(normalize(examsRes));
+      setSchedules(normalize(schedulesRes));
+      setResults(normalize(resultsRes));
+      setClasses(normalize(classesRes));
+      setSubjects(normalize(subjectsRes));
+      setStudents(normalize(studentsRes));
     } catch (error: any) {
       console.error('Failed to fetch exam data:', error);
       toast({
@@ -162,7 +165,7 @@ const ExamManagement = () => {
   const handleCreateExam = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await authClient.post('/api/admin/exams/', examForm);
+      await examApi.create(examForm as any);
       toast({
         title: "Success",
         description: "Exam created successfully",
@@ -192,7 +195,7 @@ const ExamManagement = () => {
   const handleCreateSchedule = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await authClient.post('/api/admin/exam-schedules/', scheduleForm);
+      await examScheduleApi.create(scheduleForm as any);
       toast({
         title: "Success",
         description: "Exam schedule created successfully",
@@ -222,7 +225,7 @@ const ExamManagement = () => {
   const handleCreateResult = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await authClient.post('/api/admin/exam-results/', resultForm);
+      await examResultApi.create(resultForm as any);
       toast({
         title: "Success",
         description: "Exam result recorded successfully",
@@ -262,6 +265,25 @@ const ExamManagement = () => {
   };
 
   const sidebarItems = getAdminSidebarItems("/admin/exams");
+
+  const location = useLocation();
+
+  useEffect(() => {
+    const path = location.pathname || '';
+    if (path.endsWith('/create')) {
+      // open exams tab and show create dialog
+      setActiveTab('exams');
+      setTimeout(() => openDialog('exam'), 150);
+    } else if (path.endsWith('/marks')) {
+      setActiveTab('results');
+    } else if (path.endsWith('/result-card') || path.endsWith('/result-sheet') || path.endsWith('/blank-award-list')) {
+      setActiveTab('results');
+    } else if (path.endsWith('/schedule') || path.endsWith('/date-sheet')) {
+      setActiveTab('schedules');
+    } else {
+      setActiveTab('exams');
+    }
+  }, [location]);
 
   if (loading) {
     return (

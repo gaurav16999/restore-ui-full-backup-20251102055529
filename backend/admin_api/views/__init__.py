@@ -14,6 +14,21 @@ from .timetable import TimeSlotViewSet, TimetableViewSet
 from .assignment import AssignmentViewSet, AssignmentSubmissionViewSet
 from .communication import AnnouncementViewSet, MessageViewSet, NotificationViewSet
 from .user import UserViewSet
+from .library import BookCategoryViewSet, LibraryMemberViewSet, BookViewSet, BookIssueViewSet
+from .transport import TransportRouteViewSet, TransportVehicleViewSet, VehicleAssignmentViewSet
+from .dormitory import DormRoomTypeViewSet, DormRoomViewSet, DormitoryAssignmentViewSet
+from .online_exam import OnlineExamViewSet
+from .question import QuestionGroupViewSet, QuestionViewSet
+from .class_test import ClassTestViewSet
+from .hr import DesignationViewSet, DepartmentViewSet, EmployeeViewSet, StaffAttendanceViewSet, PayrollRecordViewSet
+from .leave import LeaveTypeViewSet, LeaveDefineViewSet, LeaveApplicationViewSet
+from .role_permission import RoleViewSet, LoginPermissionViewSet, DueFeesLoginPermissionViewSet
+from .wallet import WalletAccountViewSet, WalletTransactionViewSet, WalletDepositRequestViewSet, WalletRefundRequestViewSet
+from .accounts import ChartOfAccountViewSet, AccountTransactionViewSet
+from .inventory import SupplierViewSet, ItemCategoryViewSet, ItemViewSet, ItemReceiveViewSet, ItemIssueViewSet
+from .communicate_admin import EmailTemplateViewSet, SmsTemplateViewSet, EmailSmsLogViewSet
+from .chat_admin import ChatInvitationViewSet, BlockedChatUserViewSet
+from .style_admin import ColorThemeViewSet, BackgroundSettingViewSet
 
 __all__ = [
     'AttendanceListCreateView',
@@ -56,4 +71,47 @@ __all__ = [
     'MessageViewSet',
     'NotificationViewSet',
     'UserViewSet',
+    'BookCategoryViewSet',
+    'LibraryMemberViewSet',
+    'BookViewSet',
+    'BookIssueViewSet',
+    'OnlineExamViewSet',
+    'QuestionGroupViewSet',
+    'QuestionViewSet',
+    'ClassTestViewSet',
+    'DesignationViewSet',
+    'DepartmentViewSet',
+    'EmployeeViewSet',
+    'StaffAttendanceViewSet',
+    'PayrollRecordViewSet',
+    'LeaveTypeViewSet',
+    'LeaveDefineViewSet',
+    'LeaveApplicationViewSet',
+    'RoleViewSet',
+    'LoginPermissionViewSet',
+    'DueFeesLoginPermissionViewSet',
+    'WalletAccountViewSet',
+    'WalletTransactionViewSet',
+    'WalletDepositRequestViewSet',
+    'WalletRefundRequestViewSet',
+    'ChartOfAccountViewSet',
+    'AccountTransactionViewSet',
+    'SupplierViewSet',
+    'ItemCategoryViewSet',
+    'ItemViewSet',
+    'ItemReceiveViewSet',
+    'ItemIssueViewSet',
+    'EmailTemplateViewSet',
+    'SmsTemplateViewSet',
+    'EmailSmsLogViewSet',
+    'ChatInvitationViewSet',
+    'BlockedChatUserViewSet',
+    'ColorThemeViewSet',
+    'BackgroundSettingViewSet',
+    'TransportRouteViewSet',
+    'TransportVehicleViewSet',
+    'VehicleAssignmentViewSet',
+    'DormRoomTypeViewSet',
+    'DormRoomViewSet',
+    'DormitoryAssignmentViewSet',
 ]

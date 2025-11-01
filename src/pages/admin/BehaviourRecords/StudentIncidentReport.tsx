@@ -1,0 +1,174 @@
+import { useEffect, useState } from "react";
+import DashboardLayout from "@/components/layout/DashboardLayout";
+import { getAdminSidebarItems } from "@/lib/adminSidebar";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+} from "@/components/ui/table";
+
+const StudentIncidentReport = () => {
+  const sidebarItems = getAdminSidebarItems("/admin/behaviour-records/student-incident-report");
+
+  const [academicYear, setAcademicYear] = useState("");
+  const [className, setClassName] = useState("");
+  const [section, setSection] = useState("");
+
+  const handleSearch = () => {
+    console.log("student incident report search", { academicYear, className, section });
+  };
+
+  const [incidents, setIncidents] = useState<Array<any>>([]);
+
+  useEffect(() => {
+    // initial load
+    loadIncidents();
+  }, []);
+
+  const loadIncidents = async (filters: any = {}) => {
+    try {
+      const api = (await import('@/services/adminApi')).studentIncidentApi;
+      const data = await api.getAll(filters);
+      const list = Array.isArray(data) ? data : (data as any)?.results || [];
+      setIncidents(list);
+    } catch (err) {
+      console.error('Failed to load student incidents', err);
+    }
+  };
+
+  const doSearch = async () => {
+    const params: any = {};
+    if (className) params.class_name = className;
+    if (section) params.section = section;
+    await loadIncidents(params);
+  };
+
+  return (
+    <DashboardLayout title="Student Incident Report" userName="Admin" userRole="Administrator" sidebarItems={sidebarItems}>
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Select Criteria</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-end">
+              <div>
+                <label className="text-sm text-muted-foreground block mb-1">ACADEMIC YEAR *</label>
+                <Select onValueChange={(v) => setAcademicYear(v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="2025[2025]" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="placeholder" disabled>2025[2025]</SelectItem>
+                    <SelectItem value="2024">2024[2025]</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-sm text-muted-foreground block mb-1">CLASS *</label>
+                <Select onValueChange={(v) => setClassName(v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Class *" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="placeholder" disabled>Select Class *</SelectItem>
+                    <SelectItem value="primary-1">Primary One</SelectItem>
+                    <SelectItem value="primary-2">Primary Two</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-sm text-muted-foreground block mb-1">SECTION *</label>
+                <Select onValueChange={(v) => setSection(v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Section *" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="placeholder" disabled>Select Section *</SelectItem>
+                    <SelectItem value="a">A</SelectItem>
+                    <SelectItem value="b">B</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="lg:col-span-3 flex justify-end">
+                <Button className="bg-purple-600 border-transparent text-white hover:bg-purple-700" onClick={doSearch}>🔍 SEARCH</Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Student Incident List</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-sm text-muted-foreground">🔍 SEARCH</div>
+              <div className="flex space-x-2">
+                <Button variant="ghost" className="border rounded-full">📄</Button>
+                <Button variant="ghost" className="border rounded-full">📥</Button>
+                <Button variant="ghost" className="border rounded-full">📤</Button>
+                <Button variant="ghost" className="border rounded-full">🖨️</Button>
+              </div>
+            </div>
+
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Admission No.</TableHead>
+                  <TableHead>Student Name</TableHead>
+                  <TableHead>Class(Section)</TableHead>
+                  <TableHead>Gender</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Total Incidents</TableHead>
+                  <TableHead>Total Points</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {incidents.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center">No Data Available In Table</TableCell>
+                  </TableRow>
+                ) : (
+                  incidents.map((it) => (
+                    <TableRow key={it.id}>
+                      <TableCell>{it.student}</TableCell>
+                      <TableCell>{it.student}</TableCell>
+                      <TableCell>{/* class(section) not available directly */}</TableCell>
+                      <TableCell>{/* gender */}</TableCell>
+                      <TableCell>{/* phone */}</TableCell>
+                      <TableCell>{/* total incidents - aggregated elsewhere */}</TableCell>
+                      <TableCell>{it.points}</TableCell>
+                      <TableCell>
+                        <div className="inline-flex space-x-2">
+                          <Button variant="outline" className="rounded-full">View</Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+
+            <div className="mt-4 text-sm text-muted-foreground">Showing 0 to 0 of 0 entries</div>
+          </CardContent>
+        </Card>
+
+        <div className="h-48" />
+      </div>
+    </DashboardLayout>
+  );
+};
+
+export default StudentIncidentReport;

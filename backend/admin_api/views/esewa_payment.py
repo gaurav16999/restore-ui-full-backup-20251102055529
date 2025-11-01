@@ -3,14 +3,10 @@ eSewa Payment Integration Views
 Handles payment verification and recording from eSewa payment gateway
 """
 import requests
-import hmac
-import hashlib
-import base64
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from django.conf import settings
 from admin_api.models import FeePayment, FeeStructure, Student
 from decimal import Decimal
 
@@ -41,7 +37,7 @@ def mock_verify_payment(oid, ref_id, amount):
 def verify_esewa_payment(request):
     """
     Verify eSewa payment and record it in the database
-    
+
     Expected payload:
     {
         "oid": "Product ID sent to eSewa",
@@ -56,16 +52,16 @@ def verify_esewa_payment(request):
         ref_id = request.data.get('refId')  # eSewa reference ID
         amount = request.data.get('amt')  # Amount
         fee_structure_id = request.data.get('fee_structure_id')
-        
+
         if not all([oid, ref_id, amount, fee_structure_id]):
             return Response(
                 {'error': 'Missing required payment parameters'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         # Verify payment with eSewa or use mock for testing
         verification_success = False
-        
+
         if ESEWA_CONFIG['use_mock_verification']:
             # Mock verification for development
             verification_success = mock_verify_payment(oid, ref_id, amount)
@@ -78,14 +74,14 @@ def verify_esewa_payment(request):
                     'pid': oid,
                     'scd': ESEWA_CONFIG['merchant_id']
                 }
-                
+
                 # Make verification request to eSewa
                 verification_response = requests.get(
                     ESEWA_CONFIG['verification_url'],
                     params=verification_params,
                     timeout=10
                 )
-                
+
                 # eSewa returns XML response with "Success" or "Failure"
                 response_text = verification_response.text.strip()
                 verification_success = 'Success' in response_text
@@ -94,13 +90,13 @@ def verify_esewa_payment(request):
                     {'error': f'Failed to verify payment with eSewa: {str(e)}'},
                     status=status.HTTP_503_SERVICE_UNAVAILABLE
                 )
-        
+
         if not verification_success:
             return Response(
                 {'error': 'Payment verification failed with eSewa'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         # Get student from authenticated user
         try:
             student = Student.objects.get(user=request.user)
@@ -109,7 +105,7 @@ def verify_esewa_payment(request):
                 {'error': 'Student profile not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
         # Get fee structure
         try:
             fee_structure = FeeStructure.objects.get(id=fee_structure_id)
@@ -118,13 +114,13 @@ def verify_esewa_payment(request):
                 {'error': 'Fee structure not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
         # Check if payment already exists for this transaction
         existing_payment = FeePayment.objects.filter(
             transaction_id=ref_id,
             student=student
         ).first()
-        
+
         if existing_payment:
             return Response(
                 {
@@ -133,11 +129,11 @@ def verify_esewa_payment(request):
                 },
                 status=status.HTTP_200_OK
             )
-        
+
         # Generate unique invoice number
         import random
         invoice_number = f"INV-{student.id}-{random.randint(100000, 999999)}"
-        
+
         # Create or update payment record
         payment = FeePayment.objects.create(
             student=student,
@@ -152,7 +148,7 @@ def verify_esewa_payment(request):
             due_date=fee_structure.due_date,
             remarks=f'eSewa payment - Order ID: {oid}'
         )
-        
+
         return Response(
             {
                 'message': 'Payment verified and recorded successfully',
@@ -164,7 +160,7 @@ def verify_esewa_payment(request):
             },
             status=status.HTTP_201_CREATED
         )
-        
+
     except Exception as e:
         return Response(
             {'error': f'Payment verification failed: {str(e)}'},
@@ -187,14 +183,14 @@ def get_payment_status(request, transaction_id):
                 {'error': 'Student profile not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
         # Find payment
         try:
             payment = FeePayment.objects.get(
                 transaction_id=transaction_id,
                 student=student
             )
-            
+
             return Response(
                 {
                     'payment_id': payment.id,
@@ -212,7 +208,7 @@ def get_payment_status(request, transaction_id):
                 {'error': 'Payment not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-            
+
     except Exception as e:
         return Response(
             {'error': f'Failed to retrieve payment status: {str(e)}'},

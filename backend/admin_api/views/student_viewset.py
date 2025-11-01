@@ -1,9 +1,8 @@
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from django.db.models import Q
 
-from ..models import Student, Enrollment, ClassRoom, Teacher
+from ..models import Student, Enrollment, ClassRoom
 from ..serializers import StudentSerializer, StudentCreateSerializer
 
 
@@ -31,8 +30,14 @@ class StudentViewSet(viewsets.ModelViewSet):
                 teacher = user.teacher_profile
             except Exception:
                 return qs.none()
-            classroom_ids = ClassRoom.objects.filter(assigned_teacher=teacher).values_list('id', flat=True)
-            student_ids = Enrollment.objects.filter(classroom_id__in=classroom_ids, is_active=True).values_list('student_id', flat=True)
+            classroom_ids = ClassRoom.objects.filter(
+                assigned_teacher=teacher).values_list(
+                'id', flat=True)
+            student_ids = Enrollment.objects.filter(
+                classroom_id__in=classroom_ids,
+                is_active=True).values_list(
+                'student_id',
+                flat=True)
             return qs.filter(id__in=student_ids)
 
         # Student: only self
@@ -47,5 +52,6 @@ class StudentViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         # Restrict delete to admin only
         if getattr(request.user, 'role', None) != 'admin':
-            return Response({'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'detail': 'Forbidden'},
+                            status=status.HTTP_403_FORBIDDEN)
         return super().destroy(request, *args, **kwargs)

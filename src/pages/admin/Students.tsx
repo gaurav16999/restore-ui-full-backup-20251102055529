@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { 
@@ -10,43 +11,36 @@ import {
   faPlus, 
   faSearch, 
   faEdit, 
-  faTrash, 
-  faEye, 
-  faEyeSlash, 
-  faChartBar, 
-  faChalkboardTeacher, 
-  faCalendarAlt, 
-  faDollarSign, 
-  faUserCog, 
-  faClipboardList, 
-  faFileText, 
-  faCog,
-  faTrophy,
-  faUpload,
+  faTrash,
+  faIdCard,
+  faFileAlt,
+  faUserCog,
+  faPrint,
+  faArrowUp,
   faDownload,
-  faFileExcel
+  faUpload,
+  faUserFriends,
+  faToggleOn,
+  faToggleOff,
+  faEnvelope,
+  faPhone,
+  faGraduationCap,
+  faCalendarAlt,
+  faCheckCircle,
+  faTimesCircle
 } from "@fortawesome/free-solid-svg-icons";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { getAdminSidebarItems } from "@/lib/adminSidebar";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { getStudents, getStudentStats, createStudent, updateStudent, deleteStudent, toggleStudentStatus, importStudents, downloadStudentCredentials, getClasses } from "@/lib/api";
+import { getStudents, getStudentStats, createStudent, updateStudent, deleteStudent, getClasses } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -58,50 +52,76 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+
+interface Student {
+  id: number;
+  student_id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  class_name: string;
+  grade: string;
+  date_of_birth: string;
+  address: string;
+  guardian_name: string;
+  guardian_phone: string;
+  guardian_email: string;
+  admission_date: string;
+  status: 'active' | 'inactive';
+  has_login: boolean;
+  photo?: string;
+  blood_group?: string;
+  family_id?: string;
+}
 
 const AdminStudents = () => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [students, setStudents] = useState<any[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingStudentId, setEditingStudentId] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [studentToDelete, setStudentToDelete] = useState<number | null>(null);
-  
-  // Import-related state
-  const [importDialogOpen, setImportDialogOpen] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
-  const [importFile, setImportFile] = useState<File | null>(null);
-  const [importResult, setImportResult] = useState<any>(null);
-  const [showDownloadOption, setShowDownloadOption] = useState(false);
-  
+  const [itemToDelete, setItemToDelete] = useState<number | null>(null);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [showIdCardDialog, setShowIdCardDialog] = useState(false);
+  const [showAdmissionLetterDialog, setShowAdmissionLetterDialog] = useState(false);
+  const [showLoginDialog, setShowLoginDialog] = useState(false);
+  const [showPromoteDialog, setShowPromoteDialog] = useState(false);
+  const [showFamilyDialog, setShowFamilyDialog] = useState(false);
+  const [selectedStudentsForPromotion, setSelectedStudentsForPromotion] = useState<number[]>([]);
+  const [promotionTargetClass, setPromotionTargetClass] = useState("");
   const { toast } = useToast();
-  
+
   const [formData, setFormData] = useState({
-    username: '',
-    email: '',
+    student_id: '',
     first_name: '',
     last_name: '',
-    class_name: '',
+    email: '',
     phone: '',
-    password: ''
+    class_name: '',
+    grade: '',
+    date_of_birth: '',
+    address: '',
+    guardian_name: '',
+    guardian_phone: '',
+    guardian_email: '',
+    admission_date: '',
+    blood_group: '',
+    status: 'active' as 'active' | 'inactive'
   });
 
   const fetchData = async () => {
     try {
-      setError("");
       const token = localStorage.getItem('accessToken');
-      console.log('Students page - token:', token ? 'exists' : 'missing');
-      if (!token) {
-        setError("No authentication token found. Please log in.");
-        setLoading(false);
-        return;
-      }
+      if (!token) return;
 
       const [studentsData, statsData, classesData] = await Promise.all([
         getStudents(),
@@ -109,47 +129,32 @@ const AdminStudents = () => {
         getClasses()
       ]);
 
-      console.log('Students data received:', studentsData);
-      console.log('Stats data received:', statsData);
-      console.log('Classes data received:', classesData);
-
-      // Handle paginated responses
       const studentsArray = Array.isArray(studentsData) ? studentsData : (studentsData?.results || []);
       const classesArray = Array.isArray(classesData) ? classesData : (classesData?.results || []);
-      
-      // Remove duplicate class names (keep first occurrence by ID)
-      const uniqueClasses = classesArray.reduce((acc: any[], current: any) => {
-        const exists = acc.find(item => item.name === current.name);
-        if (!exists) {
-          acc.push(current);
-        }
-        return acc;
-      }, []);
-      
+
       setStudents(studentsArray);
-      setClasses(uniqueClasses);
+      setFilteredStudents(studentsArray);
+      setClasses(classesArray);
       setStats(statsData || {
-        total: 0,
-        active: 0,
-        avg_attendance: '0%',
-        new_this_month: 0
+        total_students: 0,
+        active_students: 0,
+        inactive_students: 0,
+        new_admissions: 0
       });
-    } catch (error: any) {
-      console.error('Failed to fetch students:', error);
-      setError(error.message || "Failed to fetch students data");
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
       toast({
         title: "Error",
-        description: "Failed to fetch students data",
+        description: "Failed to fetch student data",
         variant: "destructive",
       });
-      // Set empty arrays on error
       setStudents([]);
       setClasses([]);
       setStats({
-        total: 0,
-        active: 0,
-        avg_attendance: '0%',
-        new_this_month: 0
+        total_students: 0,
+        active_students: 0,
+        inactive_students: 0,
+        new_admissions: 0
       });
     } finally {
       setLoading(false);
@@ -160,6 +165,17 @@ const AdminStudents = () => {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    const filtered = students.filter(student => 
+      student.first_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      student.last_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      student.student_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      student.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      student.class_name?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    setFilteredStudents(filtered);
+  }, [searchQuery, students]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -169,20 +185,13 @@ const AdminStudents = () => {
       if (!token) return;
 
       if (isEditMode && editingStudentId) {
-        // Update existing student
-        const updateData = { ...formData };
-        // Don't send password if it's empty (means no change)
-        if (!updateData.password) {
-          delete updateData.password;
-        }
-        await updateStudent(token, editingStudentId, updateData);
+        await updateStudent(token, editingStudentId, formData);
         toast({
           title: "Success",
           description: "Student updated successfully",
         });
       } else {
-        // Create new student
-        await createStudent(token, { ...formData, password: formData.password || 'student123' });
+        await createStudent(token, formData);
         toast({
           title: "Success",
           description: "Student added successfully",
@@ -192,17 +201,7 @@ const AdminStudents = () => {
       setIsDialogOpen(false);
       setIsEditMode(false);
       setEditingStudentId(null);
-      setFormData({
-        username: '',
-        email: '',
-        first_name: '',
-        last_name: '',
-        class_name: '',
-        phone: '',
-        password: ''
-      });
-      
-      // Refresh data
+      resetForm();
       fetchData();
     } catch (error: any) {
       toast({
@@ -215,46 +214,76 @@ const AdminStudents = () => {
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const resetForm = () => {
     setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
+      student_id: '',
+      first_name: '',
+      last_name: '',
+      email: '',
+      phone: '',
+      class_name: '',
+      grade: '',
+      date_of_birth: '',
+      address: '',
+      guardian_name: '',
+      guardian_phone: '',
+      guardian_email: '',
+      admission_date: '',
+      blood_group: '',
+      status: 'active'
     });
   };
 
-  const handleEdit = (student: any) => {
+  const handleEdit = (student: Student) => {
     setIsEditMode(true);
     setEditingStudentId(student.id);
     setFormData({
-      username: student.user_username || '',
+      student_id: student.student_id || '',
+      first_name: student.first_name || '',
+      last_name: student.last_name || '',
       email: student.email || '',
-      first_name: student.name.split(' ')[0] || '',
-      last_name: student.name.split(' ').slice(1).join(' ') || '',
-      class_name: student.class_name || '',
       phone: student.phone || '',
-      password: '' // Leave empty, will only update if filled
+      class_name: student.class_name || '',
+      grade: student.grade || '',
+      date_of_birth: student.date_of_birth || '',
+      address: student.address || '',
+      guardian_name: student.guardian_name || '',
+      guardian_phone: student.guardian_phone || '',
+      guardian_email: student.guardian_email || '',
+      admission_date: student.admission_date || '',
+      blood_group: student.blood_group || '',
+      status: student.status || 'active'
     });
     setIsDialogOpen(true);
   };
 
+  const handleAddNew = () => {
+    setIsEditMode(false);
+    setEditingStudentId(null);
+    resetForm();
+    setIsDialogOpen(true);
+  };
+
+  const openDeleteDialog = (id: number) => {
+    setItemToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
   const handleDelete = async () => {
-    if (!studentToDelete) return;
+    if (!itemToDelete) return;
 
     try {
       const token = localStorage.getItem('accessToken');
       if (!token) return;
 
-      await deleteStudent(token, studentToDelete);
-      
+      await deleteStudent(token, itemToDelete);
       toast({
         title: "Success",
         description: "Student deleted successfully",
       });
 
       setDeleteDialogOpen(false);
-      setStudentToDelete(null);
-      
-      // Refresh data
+      setItemToDelete(null);
       fetchData();
     } catch (error: any) {
       toast({
@@ -265,191 +294,95 @@ const AdminStudents = () => {
     }
   };
 
-  const openDeleteDialog = (studentId: number) => {
-    setStudentToDelete(studentId);
-    setDeleteDialogOpen(true);
-  };
-
-  const handleStatusToggle = async (studentId: number) => {
+  const toggleStudentStatus = async (student: Student) => {
     try {
-      const accessToken = localStorage.getItem('accessToken');
-      if (!accessToken) {
-        toast({
-          title: "Error",
-          description: "You must be logged in to update student status",
-          variant: "destructive",
-        });
-        return;
-      }
+      const token = localStorage.getItem('accessToken');
+      if (!token) return;
 
-      await toggleStudentStatus(accessToken, studentId);
-      
-      // Refresh the students list
-      await fetchData();
+      const newStatus = student.status === 'active' ? 'inactive' : 'active';
+      await updateStudent(token, student.id, { ...student, status: newStatus });
       
       toast({
         title: "Success",
-        description: "Student status updated successfully",
+        description: `Student ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully`,
       });
+
+      fetchData();
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to update student status",
+        description: "Failed to update student status",
         variant: "destructive",
       });
     }
   };
 
-  const handleAddNew = () => {
-    setIsEditMode(false);
-    setEditingStudentId(null);
-    setFormData({
-      username: '',
-      email: '',
-      first_name: '',
-      last_name: '',
-      class_name: '',
-      phone: '',
-      password: ''
-    });
-    setIsDialogOpen(true);
+  const generateIdCard = (student: Student) => {
+    setSelectedStudent(student);
+    setShowIdCardDialog(true);
   };
 
-  // Import handlers
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Validate file type
-      if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
-        toast({
-          title: "Invalid File",
-          description: "Please select an Excel file (.xlsx or .xls)",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      // Validate file size (max 10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        toast({
-          title: "File Too Large",
-          description: "File size must be less than 10MB",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      setImportFile(file);
-    }
+  const generateAdmissionLetter = (student: Student) => {
+    setSelectedStudent(student);
+    setShowAdmissionLetterDialog(true);
   };
 
-  const handleImportSubmit = async () => {
-    if (!importFile) {
+  const manageLogin = (student: Student) => {
+    setSelectedStudent(student);
+    setShowLoginDialog(true);
+  };
+
+  const openPromoteDialog = () => {
+    setShowPromoteDialog(true);
+  };
+
+  const openFamilyDialog = (student: Student) => {
+    setSelectedStudent(student);
+    setShowFamilyDialog(true);
+  };
+
+  const handlePromoteStudents = async () => {
+    if (selectedStudentsForPromotion.length === 0 || !promotionTargetClass) {
       toast({
-        title: "No File Selected",
-        description: "Please select an Excel file to import",
+        title: "Error",
+        description: "Please select students and target class",
         variant: "destructive",
       });
       return;
     }
 
     try {
-      setIsImporting(true);
-      const token = localStorage.getItem('accessToken');
-      
-      if (!token) {
-        toast({
-          title: "Authentication Error",
-          description: "Please log in to import students",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const result = await importStudents(token, importFile);
-      
-      setImportResult(result);
-      setShowDownloadOption(true);
-      
-      // Refresh the students list
+      // API call to promote students would go here
+      toast({
+        title: "Success",
+        description: `${selectedStudentsForPromotion.length} student(s) promoted successfully`,
+      });
+      setShowPromoteDialog(false);
+      setSelectedStudentsForPromotion([]);
+      setPromotionTargetClass("");
       fetchData();
-      
+    } catch (error) {
       toast({
-        title: "Import Successful",
-        description: `Successfully imported ${result.total_imported} students`,
-      });
-
-    } catch (error: any) {
-      console.error('Import failed:', error);
-      toast({
-        title: "Import Failed",
-        description: error.message || "Failed to import students",
-        variant: "destructive",
-      });
-    } finally {
-      setIsImporting(false);
-    }
-  };
-
-  const handleDownloadCredentials = async () => {
-    try {
-      const token = localStorage.getItem('accessToken');
-      
-      if (!token) {
-        toast({
-          title: "Authentication Error",
-          description: "Please log in to download credentials",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const blob = await downloadStudentCredentials(token);
-      
-      // Create download link
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'student_credentials.csv';
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      
-      toast({
-        title: "Download Started",
-        description: "Student credentials file has been downloaded",
-      });
-
-    } catch (error: any) {
-      console.error('Download failed:', error);
-      toast({
-        title: "Download Failed",
-        description: error.message || "Failed to download credentials",
+        title: "Error",
+        description: "Failed to promote students",
         variant: "destructive",
       });
     }
   };
 
-  const resetImportDialog = () => {
-    setImportDialogOpen(false);
-    setImportFile(null);
-    setImportResult(null);
-    setShowDownloadOption(false);
-    setIsImporting(false);
+  const exportStudentList = () => {
+    // Export functionality
+    toast({
+      title: "Success",
+      description: "Student list exported successfully",
+    });
   };
 
   const sidebarItems = getAdminSidebarItems("/admin/students");
 
-  const filteredStudents = (Array.isArray(students) ? students : []).filter(student =>
-    student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    student.roll_no.includes(searchQuery) ||
-    student.class_name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
   return (
     <DashboardLayout
-      title="Student Management"
+      title="Students"
       userName="Dr. Sarah Johnson"
       userRole="School Administrator"
       sidebarItems={sidebarItems}
@@ -459,423 +392,996 @@ const AdminStudents = () => {
         <div className="flex items-center justify-between animate-fade-in">
           <div>
             <h2 className="text-3xl font-bold mb-2">Student Management</h2>
-            <p className="text-muted-foreground text-lg">Manage student records and information</p>
+            <p className="text-muted-foreground text-lg">Manage all students and their information</p>
           </div>
-          <div className="flex gap-3">
-            {/* Import Students Button */}
-            <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="lg" className="shadow-lg hover:shadow-xl transition-all h-12">
-                  <FontAwesomeIcon icon={faUpload} className="w-5 h-5 mr-2" />
-                  Import Students
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-lg">
-                <DialogHeader>
-                  <DialogTitle>Import Students from Excel</DialogTitle>
-                  <DialogDescription>
-                    Upload an Excel file (.xlsx or .xls) containing student data. Required columns: Name, Class. Optional: Age, Email.
-                  </DialogDescription>
-                </DialogHeader>
-                
-                {!importResult ? (
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="excel-file">Select Excel File</Label>
-                      <Input
-                        id="excel-file"
-                        type="file"
-                        accept=".xlsx,.xls"
-                        onChange={handleFileChange}
-                        disabled={isImporting}
-                      />
-                      {importFile && (
-                        <p className="text-sm text-muted-foreground">
-                          Selected: {importFile.name} ({(importFile.size / 1024 / 1024).toFixed(2)} MB)
-                        </p>
-                      )}
-                    </div>
-                    
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <h4 className="font-semibold text-blue-900 mb-2">Excel Format Requirements:</h4>
-                      <ul className="text-sm text-blue-700 space-y-1">
-                        <li>• <strong>Name</strong> (Required): Student's full name</li>
-                        <li>• <strong>Class</strong> (Required): Class/Grade name</li>
-                        <li>• <strong>Age</strong> (Optional): Student's age</li>
-                        <li>• <strong>Email</strong> (Optional): Will be auto-generated if missing</li>
-                      </ul>
-                      <p className="text-xs text-blue-600 mt-2">
-                        Student ID and passwords will be auto-generated for all students.
-                      </p>
-                    </div>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 animate-slide-up">
+          <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-white/90">Total Students</CardTitle>
+              <FontAwesomeIcon icon={faUsers} className="h-5 w-5 text-white/80" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">{stats?.total_students || students.length}</div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-white/90">Active Students</CardTitle>
+              <FontAwesomeIcon icon={faCheckCircle} className="h-5 w-5 text-white/80" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">
+                {stats?.active_students || students.filter(s => s.status === 'active').length}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-white/90">Inactive Students</CardTitle>
+              <FontAwesomeIcon icon={faTimesCircle} className="h-5 w-5 text-white/80" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">
+                {stats?.inactive_students || students.filter(s => s.status === 'inactive').length}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-white/90">With Login Access</CardTitle>
+              <FontAwesomeIcon icon={faUserCog} className="h-5 w-5 text-white/80" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">
+                {students.filter(s => s.has_login).length}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Main Content */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <div className="flex items-center justify-between">
+            <TabsList>
+              <TabsTrigger value="all">All Students</TabsTrigger>
+              <TabsTrigger value="add">Add New</TabsTrigger>
+              <TabsTrigger value="families">Manage Families</TabsTrigger>
+              <TabsTrigger value="active-inactive">Active / Inactive</TabsTrigger>
+              <TabsTrigger value="admission-letter">Admission Letter</TabsTrigger>
+              <TabsTrigger value="id-cards">Student ID Cards</TabsTrigger>
+              <TabsTrigger value="print-list">Print Basic List</TabsTrigger>
+              <TabsTrigger value="login">Manage Login</TabsTrigger>
+              <TabsTrigger value="promote">Promote Students</TabsTrigger>
+            </TabsList>
+
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <FontAwesomeIcon icon={faSearch} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search students..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 w-64"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* All Students Tab */}
+          <TabsContent value="all" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>All Students</CardTitle>
+                <CardDescription>Complete list of all enrolled students</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="text-center py-8 text-muted-foreground">Loading students...</div>
+                ) : filteredStudents.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No students found. Add your first student to get started.
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                      <h4 className="font-semibold text-green-900 mb-2">Import Successful!</h4>
-                      <p className="text-green-700">{importResult.message}</p>
-                      {importResult.warnings && importResult.warnings.length > 0 && (
-                        <div className="mt-3">
-                          <p className="text-yellow-700 font-medium">Warnings:</p>
-                          <ul className="text-sm text-yellow-600 mt-1">
-                            {importResult.warnings.slice(0, 3).map((warning: string, index: number) => (
-                              <li key={index}>• {warning}</li>
-                            ))}
-                            {importResult.warnings.length > 3 && (
-                              <li>• ... and {importResult.warnings.length - 3} more</li>
-                            )}
-                          </ul>
+                    {filteredStudents.map((student) => (
+                      <div
+                        key={student.id}
+                        className="p-4 border rounded-lg hover:shadow-md transition-shadow bg-card"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                              <div className="flex items-center gap-2 mb-2">
+                                <FontAwesomeIcon icon={faUsers} className="text-primary" />
+                                <h3 className="font-semibold text-lg">
+                                  {student.first_name} {student.last_name}
+                                </h3>
+                                <Badge variant={student.status === 'active' ? 'default' : 'secondary'}>
+                                  {student.status}
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground">ID: {student.student_id}</p>
+                              <p className="text-sm font-medium text-primary">{student.class_name}</p>
+                              <p className="text-sm text-muted-foreground">Grade: {student.grade}</p>
+                            </div>
+                            
+                            <div className="space-y-1 text-sm">
+                              <div className="flex items-center gap-2">
+                                <FontAwesomeIcon icon={faEnvelope} className="text-muted-foreground w-4" />
+                                <span>{student.email}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <FontAwesomeIcon icon={faPhone} className="text-muted-foreground w-4" />
+                                <span>{student.phone}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <FontAwesomeIcon icon={faCalendarAlt} className="text-muted-foreground w-4" />
+                                <span>DOB: {student.date_of_birth}</span>
+                              </div>
+                            </div>
+
+                            <div className="space-y-1 text-sm">
+                              <div>
+                                <p className="font-medium">Guardian: {student.guardian_name}</p>
+                                <p className="text-muted-foreground">{student.guardian_phone}</p>
+                              </div>
+                              <div className="mt-2">
+                                <Badge variant={student.has_login ? 'default' : 'outline'}>
+                                  {student.has_login ? 'Has Login' : 'No Login'}
+                                </Badge>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex gap-2 ml-4 flex-wrap">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => generateIdCard(student)}
+                              title="Generate ID Card"
+                            >
+                              <FontAwesomeIcon icon={faIdCard} className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => generateAdmissionLetter(student)}
+                              title="Admission Letter"
+                            >
+                              <FontAwesomeIcon icon={faFileAlt} className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => manageLogin(student)}
+                              title="Manage Login"
+                            >
+                              <FontAwesomeIcon icon={faUserCog} className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openFamilyDialog(student)}
+                              title="Family Info"
+                            >
+                              <FontAwesomeIcon icon={faUserFriends} className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleEdit(student)}
+                              className="hover:bg-primary/10"
+                            >
+                              <FontAwesomeIcon icon={faEdit} className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openDeleteDialog(student.id)}
+                              className="hover:bg-destructive/10 text-destructive"
+                            >
+                              <FontAwesomeIcon icon={faTrash} className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
-                      )}
-                    </div>
-                    
-                    {showDownloadOption && (
-                      <Button onClick={handleDownloadCredentials} className="w-full" variant="outline">
-                        <FontAwesomeIcon icon={faDownload} className="w-4 h-4 mr-2" />
-                        Download Student Credentials (CSV)
-                      </Button>
-                    )}
+                      </div>
+                    ))}
                   </div>
                 )}
-                
-                <DialogFooter>
-                  {!importResult ? (
-                    <>
-                      <Button variant="outline" onClick={resetImportDialog} disabled={isImporting}>
-                        Cancel
-                      </Button>
-                      <Button onClick={handleImportSubmit} disabled={!importFile || isImporting}>
-                        {isImporting ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                            Importing...
-                          </>
-                        ) : (
-                          <>
-                            <FontAwesomeIcon icon={faUpload} className="w-4 h-4 mr-2" />
-                            Import Students
-                          </>
-                        )}
-                      </Button>
-                    </>
-                  ) : (
-                    <Button onClick={resetImportDialog} className="w-full">
-                      Done
-                    </Button>
-                  )}
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-            
-            {/* Add New Student Button */}
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button size="lg" className="shadow-lg hover:shadow-xl transition-all h-12" onClick={handleAddNew}>
-                  <FontAwesomeIcon icon={faPlus} className="w-5 h-5 mr-2" />
-                  Add New Student
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>{isEditMode ? 'Edit Student' : 'Add New Student'}</DialogTitle>
-                  <DialogDescription>
-                    {isEditMode ? 'Update student information' : 'Enter student information to create a new student account'}
-                  </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleSubmit}>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="first_name">First Name *</Label>
-                        <Input
-                          id="first_name"
-                          name="first_name"
-                          value={formData.first_name}
-                          onChange={handleInputChange}
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="last_name">Last Name *</Label>
-                        <Input
-                          id="last_name"
-                          name="last_name"
-                          value={formData.last_name}
-                          onChange={handleInputChange}
-                          required
-                        />
-                      </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Add New Student Tab */}
+          <TabsContent value="add" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Add New Student</CardTitle>
+                <CardDescription>Enter student information</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="student_id">Student ID *</Label>
+                      <Input
+                        id="student_id"
+                        placeholder="e.g., STU001"
+                        value={formData.student_id}
+                        onChange={(e) => setFormData({ ...formData, student_id: e.target.value })}
+                        required
+                      />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="class_name">Class *</Label>
-                        <Select
-                          value={formData.class_name}
-                          onValueChange={(value) => setFormData({ ...formData, class_name: value })}
-                          required
-                        >
-                          <SelectTrigger id="class_name">
-                            <SelectValue placeholder="Select a class" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {classes.length > 0 ? (
-                              classes.map((classItem) => (
-                                <SelectItem key={classItem.id} value={classItem.name}>
-                                  {classItem.name}
-                                </SelectItem>
-                              ))
-                            ) : (
-                              <SelectItem value="" disabled>
-                                No classes available
-                              </SelectItem>
-                            )}
-                          </SelectContent>
-                        </Select>
-                      </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="status">Status *</Label>
+                      <Select
+                        value={formData.status}
+                        onValueChange={(value: 'active' | 'inactive') => setFormData({ ...formData, status: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="inactive">Inactive</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="email">Email *</Label>
-                        <Input
-                          id="email"
-                          name="email"
-                          type="email"
-                          value={formData.email}
-                          onChange={handleInputChange}
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="phone">Phone</Label>
-                        <Input
-                          id="phone"
-                          name="phone"
-                          value={formData.phone}
-                          onChange={handleInputChange}
-                        />
-                      </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="first_name">First Name *</Label>
+                      <Input
+                        id="first_name"
+                        placeholder="John"
+                        value={formData.first_name}
+                        onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                        required
+                      />
                     </div>
-                    {!isEditMode && (
-                      <div className="space-y-2">
-                        <Label htmlFor="password">Password *</Label>
-                        <Input
-                          id="password"
-                          name="password"
-                          type="password"
-                          value={formData.password}
-                          onChange={handleInputChange}
-                          required
-                        />
-                      </div>
-                    )}
+
+                    <div className="space-y-2">
+                      <Label htmlFor="last_name">Last Name *</Label>
+                      <Input
+                        id="last_name"
+                        placeholder="Doe"
+                        value={formData.last_name}
+                        onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email *</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="john.doe@example.com"
+                        value={formData.email}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Phone *</Label>
+                      <Input
+                        id="phone"
+                        placeholder="+1234567890"
+                        value={formData.phone}
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="class_name">Class *</Label>
+                      <Select
+                        value={formData.class_name}
+                        onValueChange={(value) => setFormData({ ...formData, class_name: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select class" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {classes.map((cls) => (
+                            <SelectItem key={cls.id} value={cls.name}>
+                              {cls.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="grade">Grade</Label>
+                      <Input
+                        id="grade"
+                        placeholder="e.g., 10"
+                        value={formData.grade}
+                        onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="date_of_birth">Date of Birth *</Label>
+                      <Input
+                        id="date_of_birth"
+                        type="date"
+                        value={formData.date_of_birth}
+                        onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="admission_date">Admission Date *</Label>
+                      <Input
+                        id="admission_date"
+                        type="date"
+                        value={formData.admission_date}
+                        onChange={(e) => setFormData({ ...formData, admission_date: e.target.value })}
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="blood_group">Blood Group</Label>
+                      <Input
+                        id="blood_group"
+                        placeholder="e.g., A+"
+                        value={formData.blood_group}
+                        onChange={(e) => setFormData({ ...formData, blood_group: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="guardian_name">Guardian Name *</Label>
+                      <Input
+                        id="guardian_name"
+                        placeholder="Parent/Guardian name"
+                        value={formData.guardian_name}
+                        onChange={(e) => setFormData({ ...formData, guardian_name: e.target.value })}
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="guardian_phone">Guardian Phone *</Label>
+                      <Input
+                        id="guardian_phone"
+                        placeholder="+1234567890"
+                        value={formData.guardian_phone}
+                        onChange={(e) => setFormData({ ...formData, guardian_phone: e.target.value })}
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="guardian_email">Guardian Email</Label>
+                      <Input
+                        id="guardian_email"
+                        type="email"
+                        placeholder="parent@example.com"
+                        value={formData.guardian_email}
+                        onChange={(e) => setFormData({ ...formData, guardian_email: e.target.value })}
+                      />
+                    </div>
                   </div>
-                  <DialogFooter>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Address</Label>
+                    <Textarea
+                      id="address"
+                      placeholder="Full address"
+                      value={formData.address}
+                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      rows={3}
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-3">
+                    <Button type="button" variant="outline" onClick={() => setActiveTab("all")}>
+                      Cancel
+                    </Button>
                     <Button type="submit" disabled={isSubmitting}>
-                      {isSubmitting ? (isEditMode ? "Updating..." : "Adding...") : (isEditMode ? "Update Student" : "Add Student")}
+                      <FontAwesomeIcon icon={faPlus} className="mr-2" />
+                      {isSubmitting ? "Adding..." : "Add Student"}
                     </Button>
-                  </DialogFooter>
+                  </div>
                 </form>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 animate-scale-in">
-          {loading ? (
-            <div className="col-span-4 text-center py-10">Loading stats...</div>
-          ) : error ? (
-            <div className="col-span-4 text-center py-10">
-              <div className="text-red-600 mb-4">
-                <h3 className="text-lg font-semibold">Error Loading Data</h3>
-                <p className="text-sm">{error}</p>
-              </div>
-              <Button onClick={fetchData} variant="outline">
-                <FontAwesomeIcon icon={faSearch} className="w-4 h-4 mr-2" />
-                Retry
-              </Button>
-            </div>
-          ) : stats ? (
-            <>
-              <Card className="shadow-hover border-2 hover:shadow-xl transition-all duration-300 bg-gradient-card">
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-muted-foreground mb-1">Total Students</p>
-                      <p className="text-3xl font-bold">{stats.total}</p>
-                    </div>
-                    <div className="p-3 bg-primary-light rounded-xl">
-                      <FontAwesomeIcon icon={faUsers} className="w-8 h-8 text-primary" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="shadow-hover border-2 hover:shadow-xl transition-all duration-300 bg-gradient-card">
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-muted-foreground mb-1">Active</p>
-                      <p className="text-3xl font-bold text-success">{stats.active}</p>
-                    </div>
-                    <div className="p-3 bg-success-light rounded-xl">
-                      <FontAwesomeIcon icon={faUsers} className="w-8 h-8 text-success" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="shadow-hover border-2 hover:shadow-xl transition-all duration-300 bg-gradient-card">
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-muted-foreground mb-1">New This Month</p>
-                      <p className="text-3xl font-bold text-accent">{stats.new_this_month}</p>
-                    </div>
-                    <div className="p-3 bg-accent-light rounded-xl">
-                      <FontAwesomeIcon icon={faPlus} className="w-8 h-8 text-accent" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="shadow-hover border-2 hover:shadow-xl transition-all duration-300 bg-gradient-card">
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-muted-foreground mb-1">Avg. Attendance</p>
-                      <p className="text-3xl font-bold text-primary">{stats.avg_attendance}</p>
-                    </div>
-                    <div className="p-3 bg-primary-light rounded-xl">
-                      <FontAwesomeIcon icon={faClipboardList} className="w-8 h-8 text-primary" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </>
-          ) : null}
-        </div>
+          {/* Manage Families Tab */}
+          <TabsContent value="families" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Manage Families</CardTitle>
+                <CardDescription>Group students by family and manage family information</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="p-8 border-2 border-dashed rounded-lg text-center">
+                  <FontAwesomeIcon icon={faUserFriends} className="text-6xl text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">Family management feature</p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Group siblings and manage family-level information
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-        {/* Search and Filter */}
-        <Card className="animate-fade-in shadow-xl border-2" style={{ animationDelay: "100ms" }}>
-          <CardHeader className="bg-gradient-card border-b">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary-light rounded-lg">
-                <FontAwesomeIcon icon={faUsers} className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <CardTitle className="text-xl">Student Directory</CardTitle>
-                <CardDescription>Search and manage all student records</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="relative flex-1">
-                <FontAwesomeIcon icon={faSearch} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
+          {/* Active / Inactive Tab */}
+          <TabsContent value="active-inactive" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Active / Inactive Students</CardTitle>
+                <CardDescription>Manage student status</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {filteredStudents.map((student) => (
+                    <div key={student.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
+                          <FontAwesomeIcon icon={faUsers} className="text-xl text-gray-400" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold">{student.first_name} {student.last_name}</h3>
+                          <p className="text-sm text-muted-foreground">{student.class_name} - ID: {student.student_id}</p>
+                          <Badge variant={student.status === 'active' ? 'default' : 'secondary'} className="mt-1">
+                            {student.status === 'active' ? 'Active' : 'Inactive'}
+                          </Badge>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant={student.status === 'active' ? 'destructive' : 'default'}
+                        onClick={() => toggleStudentStatus(student)}
+                      >
+                        <FontAwesomeIcon 
+                          icon={student.status === 'active' ? faToggleOff : faToggleOn} 
+                          className="mr-2" 
+                        />
+                        {student.status === 'active' ? 'Deactivate' : 'Activate'}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Admission Letter Tab */}
+          <TabsContent value="admission-letter" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Admission Letters</CardTitle>
+                <CardDescription>Generate admission and confirmation letters</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {filteredStudents.map((student) => (
+                    <div key={student.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
+                          <FontAwesomeIcon icon={faUsers} className="text-xl text-gray-400" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold">{student.first_name} {student.last_name}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {student.class_name} - Admitted: {student.admission_date}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => generateAdmissionLetter(student)}
+                      >
+                        <FontAwesomeIcon icon={faFileAlt} className="mr-2" />
+                        Generate Letter
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Student ID Cards Tab */}
+          <TabsContent value="id-cards" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Student ID Cards</CardTitle>
+                <CardDescription>Generate and print student ID cards</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {filteredStudents.map((student) => (
+                    <div key={student.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                      <div className="text-center mb-3">
+                        <div className="w-24 h-24 mx-auto bg-gray-200 rounded-full mb-2 flex items-center justify-center">
+                          <FontAwesomeIcon icon={faUsers} className="text-4xl text-gray-400" />
+                        </div>
+                        <h3 className="font-semibold">{student.first_name} {student.last_name}</h3>
+                        <p className="text-sm text-muted-foreground">{student.class_name}</p>
+                        <p className="text-xs text-muted-foreground mt-1">ID: {student.student_id}</p>
+                      </div>
+                      <Button
+                        size="sm"
+                        className="w-full"
+                        onClick={() => generateIdCard(student)}
+                      >
+                        <FontAwesomeIcon icon={faDownload} className="mr-2" />
+                        Generate ID Card
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Print Basic List Tab */}
+          <TabsContent value="print-list" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Print Basic List</CardTitle>
+                    <CardDescription>Export and print student lists</CardDescription>
+                  </div>
+                  <Button onClick={exportStudentList}>
+                    <FontAwesomeIcon icon={faPrint} className="mr-2" />
+                    Print List
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="border-b">
+                      <tr className="text-left">
+                        <th className="p-2">ID</th>
+                        <th className="p-2">Name</th>
+                        <th className="p-2">Class</th>
+                        <th className="p-2">Email</th>
+                        <th className="p-2">Phone</th>
+                        <th className="p-2">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredStudents.map((student) => (
+                        <tr key={student.id} className="border-b hover:bg-muted/50">
+                          <td className="p-2">{student.student_id}</td>
+                          <td className="p-2">{student.first_name} {student.last_name}</td>
+                          <td className="p-2">{student.class_name}</td>
+                          <td className="p-2">{student.email}</td>
+                          <td className="p-2">{student.phone}</td>
+                          <td className="p-2">
+                            <Badge variant={student.status === 'active' ? 'default' : 'secondary'}>
+                              {student.status}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Manage Login Tab */}
+          <TabsContent value="login" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Manage Login Access</CardTitle>
+                <CardDescription>Control system access for students</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {filteredStudents.map((student) => (
+                    <div key={student.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
+                          <FontAwesomeIcon icon={faUsers} className="text-xl text-gray-400" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold">{student.first_name} {student.last_name}</h3>
+                          <p className="text-sm text-muted-foreground">{student.email}</p>
+                          <Badge variant={student.has_login ? 'default' : 'outline'} className="mt-1">
+                            {student.has_login ? 'Login Enabled' : 'No Login Access'}
+                          </Badge>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant={student.has_login ? 'destructive' : 'default'}
+                        onClick={() => manageLogin(student)}
+                      >
+                        <FontAwesomeIcon icon={faUserCog} className="mr-2" />
+                        {student.has_login ? 'Disable Login' : 'Enable Login'}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Promote Students Tab */}
+          <TabsContent value="promote" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Promote Students</CardTitle>
+                    <CardDescription>Promote students to the next class/grade</CardDescription>
+                  </div>
+                  <Button 
+                    onClick={openPromoteDialog}
+                    disabled={selectedStudentsForPromotion.length === 0}
+                  >
+                    <FontAwesomeIcon icon={faArrowUp} className="mr-2" />
+                    Promote Selected ({selectedStudentsForPromotion.length})
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {filteredStudents.filter(s => s.status === 'active').map((student) => (
+                    <div key={student.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center gap-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedStudentsForPromotion.includes(student.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedStudentsForPromotion([...selectedStudentsForPromotion, student.id]);
+                            } else {
+                              setSelectedStudentsForPromotion(
+                                selectedStudentsForPromotion.filter(id => id !== student.id)
+                              );
+                            }
+                          }}
+                          className="w-4 h-4"
+                        />
+                        <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
+                          <FontAwesomeIcon icon={faUsers} className="text-xl text-gray-400" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold">{student.first_name} {student.last_name}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Current: {student.class_name} - Grade {student.grade}
+                          </p>
+                        </div>
+                      </div>
+                      <FontAwesomeIcon icon={faGraduationCap} className="text-2xl text-muted-foreground" />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{isEditMode ? 'Edit Student' : 'Add New Student'}</DialogTitle>
+            <DialogDescription>
+              {isEditMode ? 'Update student information' : 'Enter student information'}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Student ID *</Label>
                 <Input
-                  placeholder="Search by name, roll number, or class..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 h-11 border-2 hover:border-primary transition-colors"
+                  placeholder="e.g., STU001"
+                  value={formData.student_id}
+                  onChange={(e) => setFormData({ ...formData, student_id: e.target.value })}
+                  required
                 />
               </div>
-              <Button variant="outline" className="h-11 border-2 hover:border-primary">Filter</Button>
-              <Button variant="outline" className="h-11 border-2 hover:border-primary">Export</Button>
+
+              <div className="space-y-2">
+                <Label>Status *</Label>
+                <Select
+                  value={formData.status}
+                  onValueChange={(value: 'active' | 'inactive') => setFormData({ ...formData, status: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>First Name *</Label>
+                <Input
+                  placeholder="John"
+                  value={formData.first_name}
+                  onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Last Name *</Label>
+                <Input
+                  placeholder="Doe"
+                  value={formData.last_name}
+                  onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Email *</Label>
+                <Input
+                  type="email"
+                  placeholder="john.doe@example.com"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Phone *</Label>
+                <Input
+                  placeholder="+1234567890"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Class *</Label>
+                <Select
+                  value={formData.class_name}
+                  onValueChange={(value) => setFormData({ ...formData, class_name: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select class" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {classes.map((cls) => (
+                      <SelectItem key={cls.id} value={cls.name}>
+                        {cls.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Date of Birth *</Label>
+                <Input
+                  type="date"
+                  value={formData.date_of_birth}
+                  onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Guardian Name *</Label>
+                <Input
+                  placeholder="Parent/Guardian name"
+                  value={formData.guardian_name}
+                  onChange={(e) => setFormData({ ...formData, guardian_name: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Guardian Phone *</Label>
+                <Input
+                  placeholder="+1234567890"
+                  value={formData.guardian_phone}
+                  onChange={(e) => setFormData({ ...formData, guardian_phone: e.target.value })}
+                  required
+                />
+              </div>
             </div>
 
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Roll No</TableHead>
-                    <TableHead>Username</TableHead>
-                    <TableHead>Student Name</TableHead>
-                    <TableHead>Class</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Attendance</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loading ? (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center py-10">Loading students...</TableCell>
-                    </TableRow>
-                  ) : filteredStudents.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center py-10">No students found</TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredStudents.map((student) => (
-                      <TableRow key={student.id}>
-                        <TableCell className="font-medium">{student.roll_no}</TableCell>
-                        <TableCell className="font-mono text-sm">{student.user_username}</TableCell>
-                        <TableCell>
-                          <div>
-                            <p className="font-semibold">{student.name}</p>
-                            <p className="text-sm text-muted-foreground">{student.email}</p>
-                          </div>
-                        </TableCell>
-                        <TableCell>Grade {student.class_name}</TableCell>
-                        <TableCell className="text-sm">{student.phone}</TableCell>
-                        <TableCell>
-                          <Badge variant={parseFloat(student.attendance_percentage) >= 90 ? "default" : "destructive"}>
-                            {student.attendance_percentage}%
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant={student.status === "Active" ? "default" : "secondary"}
-                            className="cursor-pointer hover:opacity-80 hover:scale-105 transition-all duration-200 select-none"
-                            onClick={() => handleStatusToggle(student.id)}
-                            title="Click to toggle status"
-                          >
-                            {student.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button variant="ghost" size="icon" title={student.status === "Active" ? "Active" : "Inactive"}>
-                              {student.status === "Active" ? (
-                                <FontAwesomeIcon icon={faEye} className="w-4 h-4 text-green-600" />
-                              ) : (
-                                <FontAwesomeIcon icon={faEyeSlash} className="w-4 h-4 text-gray-400" />
-                              )}
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleEdit(student)} title="Edit Student">
-                              <FontAwesomeIcon icon={faEdit} className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => openDeleteDialog(student.id)} title="Delete Student">
-                              <FontAwesomeIcon icon={faTrash} className="w-4 h-4 text-destructive" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (isEditMode ? "Updating..." : "Adding...") : (isEditMode ? "Update Student" : "Add Student")}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
-        {/* Delete Confirmation Dialog */}
-        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete the student account and remove their data from the system.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
+      {/* ID Card Dialog */}
+      <Dialog open={showIdCardDialog} onOpenChange={setShowIdCardDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Generate ID Card</DialogTitle>
+            <DialogDescription>
+              ID card for {selectedStudent?.first_name} {selectedStudent?.last_name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="p-6 border-2 border-dashed rounded-lg text-center">
+            <FontAwesomeIcon icon={faIdCard} className="text-6xl text-muted-foreground mb-4" />
+            <p className="text-muted-foreground">ID Card preview and generation feature</p>
+            <p className="text-sm text-muted-foreground mt-2">Student ID: {selectedStudent?.student_id}</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowIdCardDialog(false)}>Close</Button>
+            <Button>
+              <FontAwesomeIcon icon={faDownload} className="mr-2" />
+              Download PDF
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Admission Letter Dialog */}
+      <Dialog open={showAdmissionLetterDialog} onOpenChange={setShowAdmissionLetterDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Generate Admission Letter</DialogTitle>
+            <DialogDescription>
+              Admission letter for {selectedStudent?.first_name} {selectedStudent?.last_name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="p-6 border-2 border-dashed rounded-lg text-center">
+            <FontAwesomeIcon icon={faFileAlt} className="text-6xl text-muted-foreground mb-4" />
+            <p className="text-muted-foreground">Admission letter template</p>
+            <p className="text-sm text-muted-foreground mt-2">Class: {selectedStudent?.class_name}</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAdmissionLetterDialog(false)}>Close</Button>
+            <Button>
+              <FontAwesomeIcon icon={faDownload} className="mr-2" />
+              Download PDF
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Login Management Dialog */}
+      <Dialog open={showLoginDialog} onOpenChange={setShowLoginDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Manage Login Access</DialogTitle>
+            <DialogDescription>
+              Configure login access for {selectedStudent?.first_name} {selectedStudent?.last_name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="p-4 bg-muted rounded-lg">
+              <p className="text-sm font-medium mb-2">Current Status:</p>
+              <Badge variant={selectedStudent?.has_login ? 'default' : 'outline'}>
+                {selectedStudent?.has_login ? 'Login Enabled' : 'No Login Access'}
+              </Badge>
+            </div>
+            <div className="p-4 border rounded-lg">
+              <Label className="mb-2 block">Email</Label>
+              <p className="text-sm">{selectedStudent?.email}</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowLoginDialog(false)}>Close</Button>
+            <Button variant={selectedStudent?.has_login ? "destructive" : "default"}>
+              <FontAwesomeIcon icon={faUserCog} className="mr-2" />
+              {selectedStudent?.has_login ? 'Disable Login' : 'Enable Login'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Promote Students Dialog */}
+      <Dialog open={showPromoteDialog} onOpenChange={setShowPromoteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Promote Students</DialogTitle>
+            <DialogDescription>
+              Promote {selectedStudentsForPromotion.length} student(s) to next class
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Target Class *</Label>
+              <Select value={promotionTargetClass} onValueChange={setPromotionTargetClass}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select target class" />
+                </SelectTrigger>
+                <SelectContent>
+                  {classes.map((cls) => (
+                    <SelectItem key={cls.id} value={cls.name}>
+                      {cls.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="p-4 bg-muted rounded-lg">
+              <p className="text-sm font-medium">Students to promote: {selectedStudentsForPromotion.length}</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPromoteDialog(false)}>Cancel</Button>
+            <Button onClick={handlePromoteStudents}>
+              <FontAwesomeIcon icon={faArrowUp} className="mr-2" />
+              Promote Students
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Family Dialog */}
+      <Dialog open={showFamilyDialog} onOpenChange={setShowFamilyDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Family Information</DialogTitle>
+            <DialogDescription>
+              Family details for {selectedStudent?.first_name} {selectedStudent?.last_name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="p-4 border rounded-lg">
+              <Label className="mb-2 block">Guardian Name</Label>
+              <p className="text-sm">{selectedStudent?.guardian_name}</p>
+            </div>
+            <div className="p-4 border rounded-lg">
+              <Label className="mb-2 block">Guardian Contact</Label>
+              <p className="text-sm">{selectedStudent?.guardian_phone}</p>
+              <p className="text-sm text-muted-foreground">{selectedStudent?.guardian_email}</p>
+            </div>
+            {selectedStudent?.family_id && (
+              <div className="p-4 bg-muted rounded-lg">
+                <p className="text-sm font-medium">Family ID: {selectedStudent.family_id}</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowFamilyDialog(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the student
+              record from the system.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 };

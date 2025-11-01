@@ -117,4 +117,43 @@ authClient.interceptors.response.use(
   }
 );
 
+// Normalize errors into a consistent shape so UI can handle them easily
+authClient.interceptors.response.use(undefined, (error: AxiosError) => {
+  const normalized: any = {
+    status: error.response?.status ?? null,
+    message: 'Network Error',
+    details: null,
+    raw: error,
+  };
+
+  if (error.response && error.response.data) {
+    const d = error.response.data as any;
+    // DRF returns {'detail': 'msg'} or serializer errors as dict
+    if (typeof d === 'string') {
+      normalized.message = d;
+    } else if (d.detail) {
+      normalized.message = d.detail;
+      normalized.details = d;
+    } else if (typeof d === 'object') {
+      // pick a first human-readable message if possible
+      normalized.details = d;
+      const firstKey = Object.keys(d)[0];
+      const firstVal = d[firstKey];
+      if (Array.isArray(firstVal)) {
+        normalized.message = String(firstVal[0]);
+      } else if (typeof firstVal === 'string') {
+        normalized.message = firstVal;
+      } else {
+        normalized.message = JSON.stringify(d);
+      }
+    }
+  } else if (error.message) {
+    normalized.message = error.message;
+  }
+
+  // Attach normalized to the original error for callers
+  (error as any).normalized = normalized;
+  return Promise.reject(error);
+});
+
 export default authClient;

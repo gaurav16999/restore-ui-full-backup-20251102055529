@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -120,6 +122,14 @@ const AdminAttendance = () => {
 
   const sidebarItems = getAdminSidebarItems("/admin/attendance");
 
+  const location = useLocation();
+  const path = location.pathname || '';
+  let defaultTab = 'students';
+  if (path.endsWith('/employees')) defaultTab = 'employees';
+  else if (path.endsWith('/class-report')) defaultTab = 'class-report';
+  else if (path.endsWith('/students-report')) defaultTab = 'students-report';
+  else if (path.endsWith('/employees-report')) defaultTab = 'employees-report';
+
 
 
   const markAllPresent = () => {
@@ -201,6 +211,16 @@ const AdminAttendance = () => {
       sidebarItems={sidebarItems}
     >
       <div className="space-y-6">
+        <Tabs defaultValue={defaultTab} className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="students">Students Attendance</TabsTrigger>
+            <TabsTrigger value="employees">Employees Attendance</TabsTrigger>
+            <TabsTrigger value="class-report">Class wise Report</TabsTrigger>
+            <TabsTrigger value="students-report">Students Attendance Report</TabsTrigger>
+            <TabsTrigger value="employees-report">Employees Attendance Report</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="students" className="space-y-6">
         {/* Header */}
         <div className="animate-fade-in">
           <h2 className="text-3xl font-bold mb-2">Attendance Management</h2>
@@ -459,6 +479,57 @@ const AdminAttendance = () => {
             </CardContent>
           </Card>
         )}
+          </TabsContent>
+
+          <TabsContent value="employees" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Employees Attendance</CardTitle>
+                <CardDescription>Mark and track employee attendance</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">Employees attendance UI will go here. You can reuse the student attendance flow but fetch employee list instead.</p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="class-report" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Class wise Report</CardTitle>
+                <CardDescription>Generate attendance report for each class</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">Class wise attendance reports and export options will be available here.</p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="students-report" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Students Attendance Report</CardTitle>
+                <CardDescription>Individual student attendance reports</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">Generate per-student attendance reports (PDF/CSV).</p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="employees-report" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Employees Attendance Report</CardTitle>
+                <CardDescription>Attendance reports for employees</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">Employee attendance reports and export options.</p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+        </Tabs>
       </div>
     </DashboardLayout>
   );

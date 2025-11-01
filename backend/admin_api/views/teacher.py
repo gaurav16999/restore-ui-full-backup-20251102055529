@@ -1,4 +1,4 @@
-from rest_framework import generics, status
+from rest_framework import generics
 from rest_framework.response import Response
 from admin_api.models import Teacher
 from admin_api.serializers.teacher import TeacherSerializer, TeacherCreateSerializer
@@ -24,10 +24,12 @@ class TeacherStatsView(generics.RetrieveAPIView):
         total_teachers = Teacher.objects.count()
         active_teachers = Teacher.objects.filter(is_active=True).count()
         # For now, using dummy data for new_this_month and avg_performance
-        # In a real app, you'd calculate these based on created_at dates and performance metrics
+        # In a real app, you'd calculate these based on created_at dates and
+        # performance metrics
         return Response({
             'total': total_teachers,
             'active': active_teachers,
-            'new_this_month': max(0, total_teachers // 15),  # Dummy calculation
+            # Dummy calculation
+            'new_this_month': max(0, total_teachers // 15),
             'avg_performance': '92%',  # Dummy value
         })

@@ -1,6 +1,6 @@
-from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
 
 class DashboardStatsView(APIView):
     def get(self, request):
@@ -12,6 +12,7 @@ class DashboardStatsView(APIView):
             "attendance_rate": 95.5
         })
 
+
 class RecentActivitiesView(APIView):
     def get(self, request):
         # Mock data for now
@@ -19,6 +20,7 @@ class RecentActivitiesView(APIView):
             {"type": "attendance", "description": "Attendance marked for Class 10A"},
             {"type": "grade", "description": "Grades updated for Class 11B"}
         ])
+
 
 class UpcomingEventsView(APIView):
     def get(self, request):

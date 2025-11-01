@@ -1,4 +1,4 @@
-from rest_framework import generics, status
+from rest_framework import generics
 from rest_framework.response import Response
 from django.db import models
 from admin_api.models import Room
@@ -23,15 +23,17 @@ class RoomCreateView(generics.CreateAPIView):
 class RoomStatsView(generics.RetrieveAPIView):
     def get(self, request):
         total_rooms = Room.objects.filter(is_active=True).count()
-        classrooms = Room.objects.filter(is_active=True, room_type='classroom').count()
-        laboratories = Room.objects.filter(is_active=True, room_type='laboratory').count()
+        classrooms = Room.objects.filter(
+            is_active=True, room_type='classroom').count()
+        laboratories = Room.objects.filter(
+            is_active=True, room_type='laboratory').count()
         total_capacity = Room.objects.filter(is_active=True).aggregate(
             total_capacity=models.Sum('capacity')
         )['total_capacity'] or 0
         avg_capacity = Room.objects.filter(is_active=True).aggregate(
             avg_capacity=models.Avg('capacity')
         )['avg_capacity'] or 0
-        
+
         return Response({
             'total_rooms': total_rooms,
             'classrooms': classrooms,

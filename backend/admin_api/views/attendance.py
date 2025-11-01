@@ -23,7 +23,7 @@ class AttendanceListCreateView(generics.ListCreateAPIView):
                 queryset = queryset.filter(date=date_obj)
             except ValueError:
                 pass
-        
+
         return queryset.select_related('student__user', 'class_section')
 
     def create(self, request, *args, **kwargs):
@@ -33,7 +33,9 @@ class AttendanceListCreateView(generics.ListCreateAPIView):
             serializer.is_valid(raise_exception=True)
             self.perform_create(serializer)
             response_serializer = AttendanceSerializer(serializer.instance)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+            return Response(
+                response_serializer.data,
+                status=status.HTTP_201_CREATED)
 
         # Handle bulk records
         created_instances = []
@@ -69,15 +71,16 @@ class AttendanceListCreateView(generics.ListCreateAPIView):
                 })
 
         # Prepare response
-        all_instances = created_instances + updated_instances
+        created_instances + updated_instances
         response_data = {
             'created': AttendanceSerializer(created_instances, many=True).data,
             'updated': AttendanceSerializer(updated_instances, many=True).data,
             'errors': errors
         }
 
-        return Response(response_data, 
-                       status=status.HTTP_201_CREATED if not errors else status.HTTP_207_MULTI_STATUS)
+        return Response(
+            response_data,
+            status=status.HTTP_201_CREATED if not errors else status.HTTP_207_MULTI_STATUS)
 
 
 class AttendanceDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -86,47 +89,51 @@ class AttendanceDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Attendance.objects.all()
 
     def get_queryset(self):
-        return Attendance.objects.select_related('student__user', 'class_section')
+        return Attendance.objects.select_related(
+            'student__user', 'class_section')
 
 
 class ClassStudentsView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
-    
+
     def get(self, request, *args, **kwargs):
         class_id = request.query_params.get('class_id')
         date = request.query_params.get('date')
-        
+
         if not class_id:
-            return Response({'error': 'class_id is required'}, status=status.HTTP_400_BAD_REQUEST)
-            
+            return Response({'error': 'class_id is required'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
         try:
             class_obj = Class.objects.get(id=class_id)
         except Class.DoesNotExist:
-            return Response({'error': 'Class not found'}, status=status.HTTP_404_NOT_FOUND)
-            
+            return Response({'error': 'Class not found'},
+                            status=status.HTTP_404_NOT_FOUND)
+
         students_query = Student.objects.filter(class_name=class_obj.name)\
             .select_related('user')\
             .values('id', 'roll_no', 'user__first_name', 'user__last_name')
-        
+
         students = list(students_query)
-        
+
         if date:
             # Get existing attendance records for the date
             attendance_records = Attendance.objects.filter(
                 class_section=class_obj,
                 date=date
             ).values('student_id', 'status')
-            
+
             # Create a map of student_id to attendance status
             attendance_map = {
-                record['student_id']: record['status'] 
+                record['student_id']: record['status']
                 for record in attendance_records
             }
-            
+
             # Add attendance status to each student record
             for student in students:
-                student['attendance_status'] = attendance_map.get(student['id'])
-            
+                student['attendance_status'] = attendance_map.get(
+                    student['id'])
+
         return Response({
             'class_name': class_obj.name,
             'students_count': len(students),

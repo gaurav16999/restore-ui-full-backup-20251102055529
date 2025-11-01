@@ -284,11 +284,15 @@ const FeeManagement = () => {
         {/* Fee Management Tabs */}
         <Tabs defaultValue="fees" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="fees">Fee Records</TabsTrigger>
-            <TabsTrigger value="payments">Payment History</TabsTrigger>
-            <TabsTrigger value="structure">Fee Structure</TabsTrigger>
-            <TabsTrigger value="reports">Reports</TabsTrigger>
-          </TabsList>
+              <TabsTrigger value="fees">Fee Records</TabsTrigger>
+              <TabsTrigger value="generate">Generate Fees Invoice</TabsTrigger>
+              <TabsTrigger value="collect">Collect Fees</TabsTrigger>
+              <TabsTrigger value="payments">Fees Paid Slip</TabsTrigger>
+              <TabsTrigger value="defaulters">Fees Defaulters</TabsTrigger>
+              <TabsTrigger value="reports">Fees Report</TabsTrigger>
+              <TabsTrigger value="delete">Delete Fees</TabsTrigger>
+              <TabsTrigger value="structure">Fee Structure</TabsTrigger>
+            </TabsList>
 
           <TabsContent value="fees" className="space-y-4">
             {/* Filters */}
@@ -623,6 +627,99 @@ const FeeManagement = () => {
                       Generate Report
                     </Button>
                   </Card>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Generate Fees Invoice */}
+          <TabsContent value="generate" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Generate Fees Invoice</CardTitle>
+                <CardDescription>Create bulk invoices for selected classes or students</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Class / Group</Label>
+                    <Select value={selectedClass} onValueChange={setSelectedClass}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select class" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Class 9A">Class 9A</SelectItem>
+                        <SelectItem value="Class 10A">Class 10A</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Due Date</Label>
+                    <Input type="date" />
+                  </div>
+                </div>
+                <div className="flex justify-end mt-4">
+                  <Button>
+                    <FontAwesomeIcon icon={faFileInvoiceDollar} className="mr-2" />
+                    Generate
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Collect Fees (quick payment UI) */}
+          <TabsContent value="collect" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Collect Fees</CardTitle>
+                <CardDescription>Quickly record incoming payments</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground mb-3">Search student and record payment</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Input placeholder="Search student by name or roll" />
+                  <Input placeholder="Invoice #" />
+                  <Input placeholder="Amount" type="number" />
+                </div>
+                <div className="flex justify-end mt-4">
+                  <Button>
+                    <FontAwesomeIcon icon={faMoneyBillWave} className="mr-2" />
+                    Record Payment
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Fees Defaulters */}
+          <TabsContent value="defaulters" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Fees Defaulters</CardTitle>
+                <CardDescription>Students with overdue fees</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">List of students with unpaid or overdue invoices</p>
+                <div className="rounded-md border p-4">
+                  <p className="text-muted-foreground">This list is generated from unpaid invoices. Use filters above to narrow results.</p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Delete Fees (careful) */}
+          <TabsContent value="delete" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Delete Fees</CardTitle>
+                <CardDescription>Delete fee records or invoices (use with caution)</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-red-600 mb-4">Deleting fees is irreversible. Please ensure you have backups.</p>
+                <div className="flex gap-3">
+                  <Input placeholder="Invoice # or student ID" />
+                  <Button variant="destructive">Delete</Button>
                 </div>
               </CardContent>
             </Card>

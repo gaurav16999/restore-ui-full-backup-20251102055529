@@ -32,5 +32,6 @@ class TeacherViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         # Admin only
         if getattr(request.user, 'role', None) != 'admin':
-            return Response({'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'detail': 'Forbidden'},
+                            status=status.HTTP_403_FORBIDDEN)
         return super().destroy(request, *args, **kwargs)

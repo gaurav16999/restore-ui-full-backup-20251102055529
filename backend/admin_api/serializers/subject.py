@@ -6,26 +6,39 @@ class SubjectSerializer(serializers.ModelSerializer):
     """Enhanced subject serializer with new fields"""
     grades_count = serializers.SerializerMethodField()
     average_grade = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Subject
         fields = [
-            'id', 'code', 'title', 'description', 'classes_count', 
-            'teachers_count', 'students_count', 'is_active', 
-            'credit_hours', 'grades_count', 'average_grade'
-        ]
-        read_only_fields = ['id', 'classes_count', 'teachers_count', 'students_count']
-    
+            'id',
+            'code',
+            'title',
+            'description',
+            'classes_count',
+            'teachers_count',
+            'students_count',
+            'is_active',
+            'credit_hours',
+            'grades_count',
+            'average_grade',
+            'is_practical',
+            'subject_type']
+        read_only_fields = [
+            'id',
+            'classes_count',
+            'teachers_count',
+            'students_count']
+
     def get_grades_count(self, obj):
         """Get total number of grades recorded for this subject"""
         return obj.grades.count()
-    
+
     def get_average_grade(self, obj):
         """Get average grade for this subject"""
         from django.db.models import Avg
         avg = obj.grades.aggregate(avg=Avg('score'))['avg']
         return round(avg, 2) if avg else 0
-    
+
     def validate_code(self, value):
         """Ensure subject code is unique"""
         if Subject.objects.filter(code=value).exclude(
@@ -33,11 +46,12 @@ class SubjectSerializer(serializers.ModelSerializer):
         ).exists():
             raise serializers.ValidationError("Subject code must be unique.")
         return value.upper()  # Convert to uppercase
-    
+
     def validate_credit_hours(self, value):
         """Validate credit hours"""
         if value < 1 or value > 10:
-            raise serializers.ValidationError("Credit hours must be between 1 and 10.")
+            raise serializers.ValidationError(
+                "Credit hours must be between 1 and 10.")
         return value
 
     def validate(self, attrs):
@@ -51,22 +65,37 @@ class SubjectSerializer(serializers.ModelSerializer):
 class SubjectListSerializer(serializers.ModelSerializer):
     """Simplified serializer for listing subjects"""
     grades_count = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Subject
-        fields = ['id', 'code', 'title', 'credit_hours', 'is_active', 'grades_count']
-    
+    fields = [
+        'id',
+        'code',
+        'title',
+        'credit_hours',
+        'is_active',
+        'grades_count',
+        'is_practical',
+        'subject_type']
+
     def get_grades_count(self, obj):
         return obj.grades.count()
 
 
 class SubjectCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating new subjects"""
-    
+
     class Meta:
         model = Subject
-        fields = ['code', 'title', 'description', 'credit_hours', 'is_active']
-    
+    fields = [
+        'code',
+        'title',
+        'description',
+        'credit_hours',
+        'is_active',
+        'is_practical',
+        'subject_type']
+
     def validate_code(self, value):
         """Ensure subject code is unique"""
         if Subject.objects.filter(code=value.upper()).exists():
@@ -81,7 +110,9 @@ class SubjectCreateSerializer(serializers.ModelSerializer):
 
         # Autogenerate code from title if not provided
         if not attrs.get('code') and attrs.get('title'):
-            base = ''.join(ch for ch in attrs['title'].upper() if ch.isalnum())[:6]
+            base = ''.join(
+                ch for ch in attrs['title'].upper() if ch.isalnum())[
+                :6]
             base = base or 'SUBJ'
             candidate = base
             i = 1

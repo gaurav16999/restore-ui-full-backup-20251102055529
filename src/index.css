@@ -1,3 +1,10 @@
+/* stylelint:disable at-rule-no-unknown */
+/*
+  This file uses Tailwind directives and PostCSS (@tailwind / @apply).
+  Ensure your editor/CI runs Tailwind/PostCSS processing or enables the
+  "at-rule-no-unknown" rule for Tailwind. The stylelint rule above is
+  scoped to this file to avoid editor linter noise.
+*/
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -65,12 +72,16 @@ All colors MUST be HSL.
     --sidebar-ring: 217 91% 60%;
 
     /* Premium shadows with depth */
-    --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
-    --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.08);
-    --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.12);
-    --shadow-xl: 0 20px 40px -10px rgba(0, 0, 0, 0.15);
-    --shadow-card: 0 2px 8px rgba(33, 150, 243, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
-    --shadow-hover: 0 8px 24px rgba(33, 150, 243, 0.12), 0 4px 8px rgba(0, 0, 0, 0.06);
+   /* Use HSL/HSLA colors to comply with the design-system rule that
+     all colors must be expressed as HSL. For colored shadows we use
+     the primary color with a low alpha; for neutral shadows we use
+     black with low alpha. */
+   --shadow-sm: 0 1px 3px 0 hsl(0 0% 0% / 0.04);
+   --shadow-md: 0 4px 12px -2px hsl(0 0% 0% / 0.08);
+   --shadow-lg: 0 10px 25px -5px hsl(0 0% 0% / 0.12);
+   --shadow-xl: 0 20px 40px -10px hsl(0 0% 0% / 0.15);
+   --shadow-card: 0 2px 8px hsl(217 91% 60% / 0.06), 0 1px 3px hsl(0 0% 0% / 0.04);
+   --shadow-hover: 0 8px 24px hsl(217 91% 60% / 0.12), 0 4px 8px hsl(0 0% 0% / 0.06);
 
     /* Success and error colors */
     --success: 142 76% 36%;
@@ -80,6 +91,8 @@ All colors MUST be HSL.
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
     --warning-light: 38 92% 95%;
+  /* Header height used to calculate sidebar and main content offsets */
+  --app-header-height: 64px;
   }
 
   .dark {
@@ -125,12 +138,12 @@ All colors MUST be HSL.
     --sidebar-border: 215 25% 18%;
     --sidebar-ring: 217 91% 60%;
 
-    --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.3);
-    --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-    --shadow-xl: 0 20px 40px -10px rgba(0, 0, 0, 0.4);
-    --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2);
-    --shadow-hover: 0 8px 24px rgba(33, 150, 243, 0.25), 0 4px 8px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 3px 0 hsl(0 0% 0% / 0.3);
+  --shadow-md: 0 4px 12px -2px hsl(0 0% 0% / 0.3);
+  --shadow-lg: 0 10px 25px -5px hsl(0 0% 0% / 0.3);
+  --shadow-xl: 0 20px 40px -10px hsl(0 0% 0% / 0.4);
+  --shadow-card: 0 2px 8px hsl(0 0% 0% / 0.3), 0 1px 3px hsl(0 0% 0% / 0.2);
+  --shadow-hover: 0 8px 24px hsl(217 91% 60% / 0.25), 0 4px 8px hsl(0 0% 0% / 0.3);
 
     --success: 142 76% 40%;
     --success-foreground: 0 0% 100%;
@@ -142,12 +155,49 @@ All colors MUST be HSL.
   }
 }
 
+/* Merge reset & base styles here to keep @layer base together */
 @layer base {
-  * {
-    @apply border-border;
+  /* Standard box-sizing reset (safer than applying an unknown utility globally) */
+  *, *::before, *::after {
+    box-sizing: border-box;
   }
 
   body {
     @apply bg-background text-foreground;
   }
 }
+
+
+/* Custom scrollbar for the sidebar nav */
+/* WebKit-based browsers (Chrome, Edge, Safari) */
+aside nav::-webkit-scrollbar {
+  width: 10px;
+}
+
+aside nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+aside nav::-webkit-scrollbar-thumb {
+  background: hsl(var(--sidebar-accent));
+  border-radius: 9999px;
+  border: 2px solid transparent; /* create padding effect */
+  background-clip: padding-box;
+}
+
+aside nav::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary));
+}
+
+/* Firefox */
+aside nav {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--sidebar-accent)) transparent;
+}
+
+/* Optional: improve contrast in dark mode */
+.dark aside nav::-webkit-scrollbar-thumb {
+  background: hsl(var(--sidebar-accent));
+}
+
+/* stylelint:enable at-rule-no-unknown */

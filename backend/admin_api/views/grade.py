@@ -17,17 +17,18 @@ class GradeDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 class GradeStatsView(generics.RetrieveAPIView):
     def get(self, request, *args, **kwargs):
-        # Calculate grade distribution by computing letter grades from percentages
+        # Calculate grade distribution by computing letter grades from
+        # percentages
         grades = Grade.objects.all()
         grade_counts = {'A': 0, 'B': 0, 'C': 0, 'D': 0, 'F': 0}
-        
+
         for grade in grades:
             letter = grade.letter_grade
             # Map A+, A to A, B+, B to B, etc.
             base_letter = letter[0] if letter else 'F'
             if base_letter in grade_counts:
                 grade_counts[base_letter] += 1
-        
+
         return Response({
             "total_grades": Grade.objects.count(),
             "average_score": float(Grade.objects.aggregate(Avg('score'))['score__avg'] or 0),

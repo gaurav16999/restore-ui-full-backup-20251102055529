@@ -3,13 +3,23 @@ from admin_api.models import Attendance
 
 
 class AttendanceSerializer(serializers.ModelSerializer):
-    student_name = serializers.CharField(source='student.user.get_full_name', read_only=True)
+    student_name = serializers.CharField(
+        source='student.user.get_full_name', read_only=True)
     roll_no = serializers.CharField(source='student.roll_no', read_only=True)
-    class_name = serializers.CharField(source='class_section.name', read_only=True)
+    class_name = serializers.CharField(
+        source='class_section.name', read_only=True)
 
     class Meta:
         model = Attendance
-        fields = ['id', 'student', 'class_section', 'date', 'status', 'student_name', 'roll_no', 'class_name']
+        fields = [
+            'id',
+            'student',
+            'class_section',
+            'date',
+            'status',
+            'student_name',
+            'roll_no',
+            'class_name']
         read_only_fields = ['id', 'student_name', 'roll_no', 'class_name']
 
 
@@ -17,7 +27,7 @@ class AttendanceCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Attendance
         fields = ['student', 'class_section', 'date', 'status']
-        
+
     def validate(self, data):
         """
         Check if an attendance record already exists for the given student, class, and date.

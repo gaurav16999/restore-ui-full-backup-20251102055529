@@ -417,7 +417,7 @@ export default function AssignTeacher() {
                           </SelectItem>
                         ))
                       ) : (
-                        <SelectItem value="" disabled>
+                        <SelectItem value="placeholder" disabled>
                           No teachers available
                         </SelectItem>
                       )}
@@ -443,7 +443,7 @@ export default function AssignTeacher() {
                           </SelectItem>
                         ))
                       ) : (
-                        <SelectItem value="" disabled>
+                        <SelectItem value="placeholder" disabled>
                           No classes available
                         </SelectItem>
                       )}
@@ -469,7 +469,7 @@ export default function AssignTeacher() {
                           </SelectItem>
                         ))
                       ) : (
-                        <SelectItem value="" disabled>
+                        <SelectItem value="placeholder" disabled>
                           No subjects available
                         </SelectItem>
                       )}
