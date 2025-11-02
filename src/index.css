@@ -1,0 +1,203 @@
+/* stylelint:disable at-rule-no-unknown */
+/*
+  This file uses Tailwind directives and PostCSS (@tailwind / @apply).
+  Ensure your editor/CI runs Tailwind/PostCSS processing or enables the
+  "at-rule-no-unknown" rule for Tailwind. The stylelint rule above is
+  scoped to this file to avoid editor linter noise.
+*/
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Premium color palette for trust and professionalism */
+    --background: 210 30% 98%;
+    --foreground: 215 30% 20%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 215 30% 20%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 30% 20%;
+
+    /* Deep professional blue - primary color for trust */
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 217 91% 95%;
+    --primary-dark: 217 91% 45%;
+
+    /* Emerald green - secondary color for success */
+    --secondary: 142 76% 36%;
+    --secondary-foreground: 0 0% 100%;
+    --secondary-light: 142 76% 95%;
+
+    /* Amber - accent color for highlights */
+    --accent: 38 92% 50%;
+    --accent-foreground: 0 0% 100%;
+    --accent-light: 38 92% 95%;
+
+    --muted: 210 30% 96%;
+    --muted-foreground: 215 20% 50%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --destructive-light: 0 84% 97%;
+
+    --border: 214 25% 92%;
+    --input: 214 25% 95%;
+    --ring: 217 91% 60%;
+
+    --radius: 0.75rem;
+
+    /* Premium gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(217 91% 45%) 100%);
+    --gradient-secondary: linear-gradient(135deg, hsl(142 76% 36%) 0%, hsl(142 76% 30%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(38 92% 50%) 0%, hsl(38 92% 40%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(142 76% 36%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(210 30% 99%) 100%);
+
+    /* Sidebar */
+    --sidebar-background: 215 30% 18%;
+    --sidebar-foreground: 210 30% 98%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 215 25% 25%;
+    --sidebar-accent-foreground: 210 30% 98%;
+    --sidebar-border: 215 25% 22%;
+    --sidebar-ring: 217 91% 60%;
+
+    /* Premium shadows with depth */
+   /* Use HSL/HSLA colors to comply with the design-system rule that
+     all colors must be expressed as HSL. For colored shadows we use
+     the primary color with a low alpha; for neutral shadows we use
+     black with low alpha. */
+   --shadow-sm: 0 1px 3px 0 hsl(0 0% 0% / 0.04);
+   --shadow-md: 0 4px 12px -2px hsl(0 0% 0% / 0.08);
+   --shadow-lg: 0 10px 25px -5px hsl(0 0% 0% / 0.12);
+   --shadow-xl: 0 20px 40px -10px hsl(0 0% 0% / 0.15);
+   --shadow-card: 0 2px 8px hsl(217 91% 60% / 0.06), 0 1px 3px hsl(0 0% 0% / 0.04);
+   --shadow-hover: 0 8px 24px hsl(217 91% 60% / 0.12), 0 4px 8px hsl(0 0% 0% / 0.06);
+
+    /* Success and error colors */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --success-light: 142 76% 95%;
+    
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --warning-light: 38 92% 95%;
+  /* Header height used to calculate sidebar and main content offsets */
+  --app-header-height: 64px;
+  }
+
+  .dark {
+    --background: 215 30% 12%;
+    --foreground: 210 30% 98%;
+
+    --card: 215 30% 16%;
+    --card-foreground: 210 30% 98%;
+
+    --popover: 215 30% 16%;
+    --popover-foreground: 210 30% 98%;
+
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 217 91% 25%;
+    --primary-dark: 217 91% 45%;
+
+    --secondary: 142 76% 36%;
+    --secondary-foreground: 0 0% 100%;
+    --secondary-light: 142 76% 25%;
+
+    --accent: 38 92% 50%;
+    --accent-foreground: 0 0% 100%;
+    --accent-light: 38 92% 25%;
+
+    --muted: 215 25% 20%;
+    --muted-foreground: 215 20% 65%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --destructive-light: 0 84% 25%;
+
+    --border: 215 25% 22%;
+    --input: 215 25% 20%;
+    --ring: 217 91% 60%;
+
+    --sidebar-background: 215 30% 14%;
+    --sidebar-foreground: 210 30% 98%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 215 25% 20%;
+    --sidebar-accent-foreground: 210 30% 98%;
+    --sidebar-border: 215 25% 18%;
+    --sidebar-ring: 217 91% 60%;
+
+  --shadow-sm: 0 1px 3px 0 hsl(0 0% 0% / 0.3);
+  --shadow-md: 0 4px 12px -2px hsl(0 0% 0% / 0.3);
+  --shadow-lg: 0 10px 25px -5px hsl(0 0% 0% / 0.3);
+  --shadow-xl: 0 20px 40px -10px hsl(0 0% 0% / 0.4);
+  --shadow-card: 0 2px 8px hsl(0 0% 0% / 0.3), 0 1px 3px hsl(0 0% 0% / 0.2);
+  --shadow-hover: 0 8px 24px hsl(217 91% 60% / 0.25), 0 4px 8px hsl(0 0% 0% / 0.3);
+
+    --success: 142 76% 40%;
+    --success-foreground: 0 0% 100%;
+    --success-light: 142 76% 25%;
+    
+    --warning: 38 92% 55%;
+    --warning-foreground: 0 0% 100%;
+    --warning-light: 38 92% 25%;
+  }
+}
+
+/* Merge reset & base styles here to keep @layer base together */
+@layer base {
+  /* Standard box-sizing reset (safer than applying an unknown utility globally) */
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+
+/* Custom scrollbar for the sidebar nav */
+/* WebKit-based browsers (Chrome, Edge, Safari) */
+aside nav::-webkit-scrollbar {
+  width: 10px;
+}
+
+aside nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+aside nav::-webkit-scrollbar-thumb {
+  background: hsl(var(--sidebar-accent));
+  border-radius: 9999px;
+  border: 2px solid transparent; /* create padding effect */
+  background-clip: padding-box;
+}
+
+aside nav::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary));
+}
+
+/* Firefox */
+aside nav {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--sidebar-accent)) transparent;
+}
+
+/* Optional: improve contrast in dark mode */
+.dark aside nav::-webkit-scrollbar-thumb {
+  background: hsl(var(--sidebar-accent));
+}
+
+/* stylelint:enable at-rule-no-unknown */

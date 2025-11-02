@@ -1,0 +1,538 @@
+import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { 
+  faClipboardCheck, 
+  faCheckCircle, 
+  faTimesCircle, 
+  faCalendar, 
+  faUsers, 
+  faShield, 
+  faChartLine, 
+  faChartBar, 
+  faChalkboardTeacher, 
+  faCalendarAlt, 
+  faClipboardList, 
+  faTrophy, 
+  faFileText, 
+  faDollarSign, 
+  faUserCog, 
+  faCog,
+  faArrowTrendUp,
+  faX
+} from "@fortawesome/free-solid-svg-icons";
+import DashboardLayout from "@/components/layout/DashboardLayout";
+import { getAdminSidebarItems } from "@/lib/adminSidebar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { getClasses, getClassStudents, getAttendance, saveAttendanceRecords } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+
+interface Student {
+  id: string;
+  roll_no: string;
+  user__first_name: string;
+  user__last_name: string;
+}
+
+interface AttendanceRecord {
+  id?: number;
+  student: number;
+  class_section: number;
+  date: string;
+  status: 'present' | 'absent';
+  student_name?: string;
+  roll_no?: string;
+  class_name?: string;
+}
+
+const AdminAttendance = () => {
+  const { toast } = useToast();
+  const { accessToken } = useAuth();
+  const [selectedClass, setSelectedClass] = useState("");
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [attendance, setAttendance] = useState<{ [key: string]: 'present' | 'absent' }>({});
+  const [classes, setClasses] = useState<Array<{ id: string; name: string; students_count: number }>>([]);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchClasses = async () => {
+      try {
+        const data = await getClasses();
+        // Handle paginated response
+        const classesArray = Array.isArray(data) ? data : (data?.results || []);
+        setClasses(classesArray);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to fetch classes. Please try again.",
+          variant: "destructive",
+        });
+        setClasses([]);
+      }
+    };
+    
+    fetchClasses();
+  }, []);
+
+  useEffect(() => {
+    const fetchStudents = async () => {
+      if (!selectedClass) return;
+      
+      try {
+        setLoading(true);
+        const data = await getClassStudents(selectedClass);
+        // Handle paginated response
+        const studentsData = data.students || [];
+        setStudents(studentsData);
+        
+        // Fetch existing attendance for the selected date
+        const attendanceData = await getAttendance(selectedClass, selectedDate);
+        const attendanceMap: { [key: string]: 'present' | 'absent' } = {};
+        const attendanceArray = Array.isArray(attendanceData) ? attendanceData : [];
+        attendanceArray.forEach((record: AttendanceRecord) => {
+          attendanceMap[record.student.toString()] = record.status;
+        });
+        setAttendance(attendanceMap);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to fetch students. Please try again.",
+          variant: "destructive",
+        });
+        setStudents([]);
+        setAttendance({});
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchStudents();
+  }, [selectedClass, selectedDate, accessToken]);
+
+  const sidebarItems = getAdminSidebarItems("/admin/attendance");
+
+  const location = useLocation();
+  const path = location.pathname || '';
+  let defaultTab = 'students';
+  if (path.endsWith('/employees')) defaultTab = 'employees';
+  else if (path.endsWith('/class-report')) defaultTab = 'class-report';
+  else if (path.endsWith('/students-report')) defaultTab = 'students-report';
+  else if (path.endsWith('/employees-report')) defaultTab = 'employees-report';
+
+
+
+  const markAllPresent = () => {
+    const newAttendance: { [key: string]: 'present' | 'absent' } = {};
+    students.forEach(student => {
+      newAttendance[student.id] = 'present';
+    });
+    setAttendance(newAttendance);
+    toast({
+      title: "All Marked Present",
+      description: "All students have been marked as present.",
+    });
+  };
+
+  const markAllAbsent = () => {
+    const newAttendance: { [key: string]: 'present' | 'absent' } = {};
+    students.forEach(student => {
+      newAttendance[student.id] = 'absent';
+    });
+    setAttendance(newAttendance);
+    toast({
+      title: "All Marked Absent",
+      description: "All students have been marked as absent.",
+    });
+  };
+
+  const toggleAttendance = (studentId: string) => {
+    setAttendance(prev => ({
+      ...prev,
+      [studentId]: prev[studentId] === 'present' ? 'absent' : 'present'
+    }));
+  };
+
+  const saveAttendance = async () => {
+    if (!selectedClass) {
+      toast({
+        title: "Error",
+        description: "Please select a class first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const attendanceRecords = students.map(student => ({
+        student: parseInt(student.id),
+        class_section: parseInt(selectedClass),
+        date: selectedDate,
+        status: attendance[student.id] || 'absent'
+      }));
+
+      await saveAttendanceRecords(attendanceRecords);
+      
+      toast({
+        title: "Attendance Saved",
+        description: `${presentCount} present, ${absentCount} absent. Attendance recorded for ${selectedDate}.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save attendance. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const presentCount = Object.values(attendance).filter(status => status === 'present').length;
+  const absentCount = Object.values(attendance).filter(status => status === 'absent').length;
+  const totalMarked = Object.keys(attendance).length;
+
+  return (
+    <DashboardLayout
+      title="Attendance Management"
+      userName="Admin User"
+      userRole="Administrator"
+      sidebarItems={sidebarItems}
+    >
+      <div className="space-y-6">
+        <Tabs defaultValue={defaultTab} className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="students">Students Attendance</TabsTrigger>
+            <TabsTrigger value="employees">Employees Attendance</TabsTrigger>
+            <TabsTrigger value="class-report">Class wise Report</TabsTrigger>
+            <TabsTrigger value="students-report">Students Attendance Report</TabsTrigger>
+            <TabsTrigger value="employees-report">Employees Attendance Report</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="students" className="space-y-6">
+        {/* Header */}
+        <div className="animate-fade-in">
+          <h2 className="text-3xl font-bold mb-2">Attendance Management</h2>
+          <p className="text-muted-foreground">Mark and track student attendance</p>
+        </div>
+
+        {/* Selection Controls */}
+        <Card className="animate-scale-in shadow-lg border-2">
+          <CardHeader className="bg-gradient-card">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary-light rounded-lg">
+                  <FontAwesomeIcon icon={faCalendar} className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl">Attendance Control Panel</CardTitle>
+                  <CardDescription>Select class and manage attendance records</CardDescription>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-primary-light rounded-lg">
+                <FontAwesomeIcon icon={faShield} className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium text-primary">Secure Session</span>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="grid md:grid-cols-3 gap-6">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <FontAwesomeIcon icon={faUsers} className="w-4 h-4 text-primary" />
+                  Select Class
+                </label>
+                <Select value={selectedClass} onValueChange={setSelectedClass}>
+                  <SelectTrigger className="h-11 border-2 hover:border-primary transition-colors">
+                    <SelectValue placeholder="Choose a class..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {classes.map((cls) => (
+                      <SelectItem key={cls.id} value={cls.id}>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-primary"></div>
+                          {cls.name} • {cls.students_count} students
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <FontAwesomeIcon icon={faCalendar} className="w-4 h-4 text-primary" />
+                  Date
+                </label>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="flex h-11 w-full rounded-md border-2 border-input bg-background px-3 py-2 text-sm hover:border-primary transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-foreground">Quick Actions</label>
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={markAllPresent} 
+                    variant="outline" 
+                    className="flex-1 h-11 border-2 hover:border-success hover:bg-success-light hover:text-success transition-all"
+                  >
+                    <FontAwesomeIcon icon={faCheckCircle} className="w-4 h-4 mr-1.5" />
+                    All Present
+                  </Button>
+                  <Button 
+                    onClick={markAllAbsent} 
+                    variant="outline" 
+                    className="flex-1 h-11 border-2 hover:border-destructive hover:bg-destructive-light hover:text-destructive transition-all"
+                  >
+                    <FontAwesomeIcon icon={faTimesCircle} className="w-4 h-4 mr-1.5" />
+                    All Absent
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Stats */}
+        {selectedClass && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 animate-fade-in">
+            <Card className="shadow-hover border-2 hover:shadow-xl transition-all duration-300 bg-gradient-card">
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-primary-light flex items-center justify-center">
+                    <FontAwesomeIcon icon={faUsers} className="w-7 h-7 text-primary" />
+                  </div>
+                  <p className="text-3xl font-bold mb-1">{students.length}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Total Students</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="shadow-hover border-2 border-success/20 hover:shadow-xl hover:border-success/40 transition-all duration-300 bg-gradient-card">
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-success-light flex items-center justify-center">
+                    <FontAwesomeIcon icon={faCheckCircle} className="w-7 h-7 text-success" />
+                  </div>
+                  <p className="text-3xl font-bold mb-1 text-success">{presentCount}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Present Today</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="shadow-hover border-2 border-destructive/20 hover:shadow-xl hover:border-destructive/40 transition-all duration-300 bg-gradient-card">
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-destructive-light flex items-center justify-center">
+                    <FontAwesomeIcon icon={faX} className="w-7 h-7 text-destructive" />
+                  </div>
+                  <p className="text-3xl font-bold mb-1 text-destructive">{absentCount}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Absent Today</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="shadow-hover border-2 border-primary/20 hover:shadow-xl hover:border-primary/40 transition-all duration-300 bg-gradient-primary">
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-white/20 flex items-center justify-center">
+                    <FontAwesomeIcon icon={faArrowTrendUp} className="w-7 h-7 text-white" />
+                  </div>
+                  <p className="text-3xl font-bold mb-1 text-white">
+                    {totalMarked > 0 ? Math.round((presentCount / students.length) * 100) : 0}%
+                  </p>
+                  <p className="text-sm font-medium text-white/90">Attendance Rate</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Student List */}
+        {selectedClass && (
+          <Card className="animate-fade-in shadow-xl border-2" style={{ animationDelay: "100ms" }}>
+            <CardHeader className="bg-gradient-card border-b">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary-light rounded-lg">
+                    <FontAwesomeIcon icon={faClipboardCheck} className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl">Student Attendance</CardTitle>
+                    <CardDescription>Mark attendance status for each student</CardDescription>
+                  </div>
+                </div>
+                <div className="text-sm font-medium text-muted-foreground">
+                  {totalMarked}/{students.length} Marked
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="space-y-3">
+                {students.map((student, index) => (
+                  <div
+                    key={student.id}
+                    className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all duration-300 hover:shadow-md ${
+                      attendance[student.id] === 'present' 
+                        ? 'bg-success-light border-success/30' 
+                        : attendance[student.id] === 'absent' 
+                        ? 'bg-destructive-light border-destructive/30' 
+                        : 'bg-card border-border hover:border-primary/30'
+                    }`}
+                    style={{ animationDelay: `${index * 30}ms` }}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-sm ${
+                        attendance[student.id] === 'present'
+                          ? 'bg-success text-white'
+                          : attendance[student.id] === 'absent'
+                          ? 'bg-destructive text-white'
+                          : 'bg-primary-light text-primary'
+                      }`}>
+                        {student.roll_no}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-base">{`${student.user__first_name} ${student.user__last_name}`}</p>
+                        <p className="text-sm text-muted-foreground">Roll No: {student.roll_no}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Button
+                        size="lg"
+                        variant={attendance[student.id] === 'present' ? 'default' : 'outline'}
+                        onClick={() => {
+                          setAttendance(prev => ({ ...prev, [student.id]: 'present' }));
+                        }}
+                        className={`min-w-[120px] font-semibold transition-all ${
+                          attendance[student.id] === 'present'
+                            ? 'bg-success hover:bg-success/90 border-success shadow-md'
+                            : 'border-2 hover:border-success hover:bg-success-light hover:text-success'
+                        }`}
+                      >
+                        <FontAwesomeIcon icon={faCheckCircle} className="w-5 h-5 mr-2" />
+                        Present
+                      </Button>
+                      <Button
+                        size="lg"
+                        variant={attendance[student.id] === 'absent' ? 'destructive' : 'outline'}
+                        onClick={() => {
+                          setAttendance(prev => ({ ...prev, [student.id]: 'absent' }));
+                        }}
+                        className={`min-w-[120px] font-semibold transition-all ${
+                          attendance[student.id] === 'absent'
+                            ? 'shadow-md'
+                            : 'border-2 hover:border-destructive hover:bg-destructive-light hover:text-destructive'
+                        }`}
+                      >
+                        <FontAwesomeIcon icon={faX} className="w-5 h-5 mr-2" />
+                        Absent
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-8 flex items-center justify-between p-6 bg-primary-light rounded-xl border-2 border-primary/20">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-white rounded-lg">
+                    <FontAwesomeIcon icon={faShield} className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-foreground">Ready to save attendance?</p>
+                    <p className="text-sm text-muted-foreground">All changes will be securely recorded</p>
+                  </div>
+                </div>
+                <Button 
+                  size="lg" 
+                  onClick={saveAttendance} 
+                  disabled={totalMarked === 0}
+                  className="min-w-[180px] h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all"
+                >
+                  <FontAwesomeIcon icon={faClipboardCheck} className="w-5 h-5 mr-2" />
+                  Save Attendance
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {!selectedClass && (
+          <Card className="animate-fade-in shadow-xl border-2">
+            <CardContent className="py-16 text-center">
+              <div className="w-24 h-24 mx-auto mb-6 rounded-2xl bg-primary-light flex items-center justify-center">
+                <FontAwesomeIcon icon={faClipboardCheck} className="w-12 h-12 text-primary" />
+              </div>
+              <h3 className="text-2xl font-bold mb-2">Select a Class to Begin</h3>
+              <p className="text-lg text-muted-foreground max-w-md mx-auto">
+                Choose a class from the dropdown above to start marking attendance for today
+              </p>
+            </CardContent>
+          </Card>
+        )}
+          </TabsContent>
+
+          <TabsContent value="employees" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Employees Attendance</CardTitle>
+                <CardDescription>Mark and track employee attendance</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">Employees attendance UI will go here. You can reuse the student attendance flow but fetch employee list instead.</p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="class-report" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Class wise Report</CardTitle>
+                <CardDescription>Generate attendance report for each class</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">Class wise attendance reports and export options will be available here.</p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="students-report" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Students Attendance Report</CardTitle>
+                <CardDescription>Individual student attendance reports</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">Generate per-student attendance reports (PDF/CSV).</p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="employees-report" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Employees Attendance Report</CardTitle>
+                <CardDescription>Attendance reports for employees</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">Employee attendance reports and export options.</p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+        </Tabs>
+      </div>
+    </DashboardLayout>
+  );
+};
+
+export default AdminAttendance;

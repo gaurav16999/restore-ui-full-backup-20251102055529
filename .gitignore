@@ -1,0 +1,90 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Django
+*.sqlite3
+db.sqlite3
+*.pot
+media/
+staticfiles/
+backend/staticfiles/
+backend/media/
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+backend/venv/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Backup files
+*.bak
+*.sql
+backup_*.sql
+
+# Test files
+test_*.py
+test_*.js
+check_*.py
+create_*.py
+delete_*.py
+fix_*.py
+setup_*.py
+sync_*.py
+update_*.py
+verify_*.py
+
+# OS
+.DS_Store
+Thumbs.db
+
