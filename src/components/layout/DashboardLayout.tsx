@@ -1,4 +1,4 @@
-import { ReactNode, useState, useEffect } from "react";
+import { ReactNode, useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { GraduationCap, Menu, X, LogOut, User, ChevronRight } from "lucide-react";
@@ -38,6 +38,8 @@ const DashboardLayout = ({
   const location = useLocation();
   const pathname = location.pathname;
   const { logout } = useAuth();
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  
   // Start with sidebar open on large screens and closed on small screens
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
     if (typeof window === 'undefined') return true;
@@ -50,9 +52,21 @@ const DashboardLayout = ({
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+  
+  // Initialize expanded state from localStorage or auto-expand active parents
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() => {
+    // Try to load from localStorage first
+    const savedState = localStorage.getItem('sidebar-expanded-state');
+    if (savedState) {
+      try {
+        return JSON.parse(savedState);
+      } catch (e) {
+        console.error('Failed to parse saved sidebar state:', e);
+      }
+    }
+    
+    // Fallback: auto-expand parents that contain the active child
     const map: Record<string, boolean> = {};
-    // auto-expand parents that contain the active child
     sidebarItems.forEach((it: any) => {
       const key = it.path ?? it.label;
       if (it.children && Array.isArray(it.children)) {
@@ -62,6 +76,32 @@ const DashboardLayout = ({
     });
     return map;
   });
+  
+  // Save expanded state to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('sidebar-expanded-state', JSON.stringify(expanded));
+  }, [expanded]);
+  
+  // Save and restore scroll position
+  useEffect(() => {
+    const savedScrollPosition = localStorage.getItem('sidebar-scroll-position');
+    if (savedScrollPosition && sidebarRef.current) {
+      sidebarRef.current.scrollTop = parseInt(savedScrollPosition, 10);
+    }
+  }, []);
+  
+  // Save scroll position on scroll
+  useEffect(() => {
+    const sidebar = sidebarRef.current;
+    if (!sidebar) return;
+    
+    const handleScroll = () => {
+      localStorage.setItem('sidebar-scroll-position', sidebar.scrollTop.toString());
+    };
+    
+    sidebar.addEventListener('scroll', handleScroll);
+    return () => sidebar.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const handleSignOut = () => {
     logout();
@@ -137,7 +177,7 @@ const DashboardLayout = ({
           role="navigation"
           aria-label="Main sidebar"
         >
-          <nav className="p-4 space-y-1.5 overflow-y-auto h-full">
+          <nav ref={sidebarRef} className="p-4 space-y-1.5 overflow-y-auto h-full">
             {sidebarItems.map((item: any, index: number) => {
               // Section heading
               if (item.type === 'section') {
